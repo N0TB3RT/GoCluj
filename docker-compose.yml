@@ -57,6 +57,12 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
-
+  scraper:
+    build: ./scraper
+    container_name: gocluj_scraper
+    depends_on:
+      - backend
+    # Nu restartam automat la infinit, pentru ca scraperul isi termina treaba si se opreste
+    restart: "no"
 volumes:
   postgres_data:
