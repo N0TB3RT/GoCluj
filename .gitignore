@@ -1,0 +1,64 @@
+# ==========================================
+# Environment & Sensitive Credentials
+# ==========================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+
+# ==========================================
+# Docker & Local Data Persistence
+# ==========================================
+# Ignores docker-compose override files if used locally
+docker-compose.override.yml
+# Ignores pgAdmin persistent data & local DB mounts
+pgadmin_data/
+postgres_data/
+
+# ==========================================
+# Backend / Python (FastAPI)
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# ==========================================
+# Frontend / Node.js (React)
+# ==========================================
+frontend/node_modules/
+frontend/build/
+frontend/dist/
+frontend/.npm
+frontend/.eslintcache
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# ==========================================
+# IDEs & OS System Files
+# ==========================================
+# Windows
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# VS Code & JetBrains (PyCharm/WebStorm)
+.vscode/
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
