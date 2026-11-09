@@ -1,0 +1,1 @@
+"""GoCluj event scraper."""

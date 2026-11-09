@@ -1,0 +1,126 @@
+"""Minimal schema.org Event extraction from JSON-LD blocks."""
+
+import json
+from typing import Any
+
+
+def _is_event(node: Any) -> bool:
+    if not isinstance(node, dict):
+        return False
+    types = node.get("@type")
+    types = [types] if isinstance(types, str) else (types or [])
+    return any(isinstance(t, str) and t.endswith(("Event", "Festival")) for t in types)
+
+
+def _flatten(data: Any) -> list[dict]:
+    """Flatten top-level lists and @graph into a flat list of dict nodes."""
+    if isinstance(data, list):
+        return [n for item in data for n in _flatten(item)]
+    if isinstance(data, dict):
+        return [data, *_flatten(data.get("@graph", []))]
+    return []
+
+
+def _load(raw: str) -> Any:
+    try:
+        return json.loads(raw, strict=False)
+    except ValueError:
+        return None
+
+
+def extract_jsonld_events(response) -> list[dict]:
+    """Return every schema.org *Event dict found in the page's JSON-LD blocks."""
+    events = []
+    for raw in response.css('script[type="application/ld+json"]::text').getall():
+        events.extend(n for n in _flatten(_load(raw)) if _is_event(n))
+    return events
+
+
+def _first(value: Any) -> Any:
+    return value[0] if isinstance(value, list) and value else value
+
+
+def _image(value: Any) -> str | None:
+    value = _first(value)
+    if isinstance(value, dict):
+        value = value.get("url")
+    return value if isinstance(value, str) else None
+
+
+def _text(value: Any) -> str | None:
+    return str(value) if value not in (None, "") else None
+
+
+def _address(value: Any) -> tuple[str | None, str | None]:
+    """Return (full address, city) from a string or PostalAddress."""
+    if isinstance(value, str):
+        return value, None
+    if not isinstance(value, dict):
+        return None, None
+    street, city = value.get("streetAddress"), value.get("addressLocality")
+    return ", ".join(p for p in (street, city) if p) or None, city
+
+
+def _venue(location: Any) -> dict:
+    location = _first(location)
+    if isinstance(location, str):
+        return {"name": location}
+    if not isinstance(location, dict):
+        return {}
+    address, city = _address(location.get("address"))
+    geo = location.get("geo") or {}
+    venue = {
+        "name": location.get("name"),
+        "address": address,
+        "city": city,
+        "lat": _to_float(geo.get("latitude")),
+        "lng": _to_float(geo.get("longitude")),
+    }
+    return {k: v for k, v in venue.items() if v is not None}
+
+
+def _to_float(value: Any) -> float | None:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _num(value: Any) -> str | None:
+    number = _to_float(value)
+    if number is None:
+        return None
+    return str(int(number)) if number == int(number) else f"{number:g}"
+
+
+def _price_text(offers: Any) -> str | None:
+    """Build e.g. '59 - 99 RON' from an Offer, AggregateOffer or a list of offers."""
+    prices: list[str] = []
+    currency = None
+    for offer in offers if isinstance(offers, list) else [offers]:
+        if not isinstance(offer, dict):
+            continue
+        currency = currency or offer.get("priceCurrency")
+        for key in ("lowPrice", "price", "highPrice"):
+            if (p := _num(offer.get(key))) is not None:
+                prices.append(p)
+    if not prices:
+        return None
+    values = sorted(set(prices), key=float)
+    text = values[0] if len(values) == 1 else f"{values[0]} - {values[-1]}"
+    return f"{text} {currency}" if currency else text
+
+
+def jsonld_to_fields(data: dict) -> dict:
+    """Map a schema.org Event dict to ``make_event`` kwargs (None values omitted)."""
+    fields = {
+        "title": _text(data.get("name")),
+        "description": _text(data.get("description")),
+        "start_at": data.get("startDate"),
+        "end_at": data.get("endDate"),
+        "source_url": data.get("url"),
+        "image_url": _image(data.get("image")),
+        "venue": _venue(data.get("location")) or None,
+        "price_text": _price_text(data.get("offers")),
+    }
+    return {k: v for k, v in fields.items() if v is not None}

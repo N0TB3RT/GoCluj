@@ -62,3 +62,11 @@ $RECYCLE.BIN/
 .idea/
 *.swp
 *.swo
+
+# Local CLAUDE.md
+CLAUDE.local.md
+# ==========================================
+# Scraper
+# ==========================================
+scrape/out/
+scrape/.scrapy/
