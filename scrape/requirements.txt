@@ -1,0 +1,7 @@
+# Runtime dependencies (pinned). Add scrapy-playwright here only if INV-01 picks a JS-only source.
+scrapy==2.13.3
+# Pinned explicitly: newer Twisted releases break Scrapy 2.13 (private SSL API removed).
+twisted==25.5.0
+pydantic==2.11.7
+requests==2.32.4
+tzdata==2025.2
