@@ -1,33 +1,21 @@
-function formatDate(date) {
-  const formatted = new Intl.DateTimeFormat('ro-RO', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  }).format(new Date(`${date}T12:00:00`))
+import { formatEventDate } from '../utils/eventDate.js'
 
-  return formatted.charAt(0).toLocaleUpperCase('ro-RO') + formatted.slice(1)
-}
-
-function EventCard({ event, onOpen }) {
+export default function EventCard({ event }) {
+  const dateLabel = formatEventDate(event.date)
   return (
     <article className="event-card">
-      <button type="button" className="event-image-button" onClick={onOpen} aria-label={`Vezi detalii: ${event.title}`}>
-        <img className="event-image" src={event.image} alt={event.imageAlt} loading="lazy" />
-      </button>
-      <div className="flex items-start justify-between gap-3 pt-4">
-        <span className="event-category">{event.category}</span>
-        <span className="event-price">{event.price}</span>
-      </div>
-      <h3 className="mb-2 mt-3">
-        <button type="button" className="event-title-button" onClick={onOpen}>{event.title}</button>
-      </h3>
-      <div className="event-meta">
-        <time dateTime={`${event.date}T${event.time}`}>{formatDate(event.date)} · {event.time}</time>
-        <span aria-hidden="true">·</span>
-        <span>{event.venue}</span>
-      </div>
+      <p className="eyebrow mb-4">Cluj-Napoca</p>
+      <h3 className="font-display text-2xl leading-tight">{event.title}</h3>
+      <dl className="event-details">
+        <div><dt>Data</dt><dd>{dateLabel ? <time dateTime={event.date}>{dateLabel}</time> : 'Data va fi anunțată'}</dd></div>
+        <div><dt>Locație</dt><dd>{event.venue}</dd></div>
+        <div><dt>Preț</dt><dd>{event.price}</dd></div>
+      </dl>
+      {event.sourceUrl ? (
+        <a className="event-source" href={event.sourceUrl} target="_blank" rel="noopener noreferrer" aria-label={`Vezi sursa originală: ${event.title} (filă nouă)`}>
+          Vezi sursa originală <span aria-hidden="true">↗</span>
+        </a>
+      ) : <p className="source-unavailable">Sursa originală nu este disponibilă.</p>}
     </article>
   )
 }
-
-export default EventCard
