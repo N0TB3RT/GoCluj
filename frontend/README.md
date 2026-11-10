@@ -36,23 +36,46 @@ Pentru publicarea unui build static, `VITE_API_URL` se stabilește la build. Dac
 
 ## Contract GET /api/events
 
-Răspuns HTTP 200, JSON: un array de evenimente. `[]` înseamnă că nu există evenimente. Obiectele de paginare nu fac parte din contractul S0 implementat.
+`GET /api/events?limit=20&offset=0` returns HTTP 200 with a page of upcoming events, sorted by start time. The client asks for 20 events at a time and the "Încarcă mai multe" button requests the next page with `offset = number of events already loaded` while that number is below `total`. `items: []` with `total: 0` means there are no events. Any other shape (a bare array, a missing `items` array, a non-numeric `total`) is treated as an invalid response and shown as an error.
 
 ```json
-[
-  {
-    "id": 1,
-    "title": "Titlul evenimentului",
-    "event_date": "2026-11-12T19:30:00+02:00",
-    "location_name": "Locația evenimentului",
-    "price_info": "50 lei",
-    "is_free": false,
-    "source_url": "https://organizator.example/eveniment"
-  }
-]
+{
+  "items": [
+    {
+      "id": 12,
+      "source_name": "LiveTickets",
+      "source_url": "https://www.livetickets.ro/bilete/balul-dintilor-de-lapte-1",
+      "title": "Balul “Dinților de Lapte”",
+      "description": "Line one\n\nLine two",
+      "start_at": "2026-11-12T21:00:00+02:00",
+      "end_at": "2026-11-13T05:00:00+02:00",
+      "venue": { "name": "MATTER", "address": "Str. Universității 3", "city": "Cluj-Napoca", "lat": 46.768, "lng": 23.590 },
+      "price_text": "30 - 35 RON",
+      "is_free": false,
+      "categories": [],
+      "source_category": "divertisment",
+      "image_url": "https://cdn.example/x/Background_MEDIUM.jpg"
+    }
+  ],
+  "total": 31,
+  "limit": 20,
+  "offset": 0
+}
 ```
 
-Acesta este doar un exemplu de contract; aplicația nu îl încarcă. Sunt acceptate și câmpurile `start_time`, `venue`, `price` din cerință. `is_free: true` sau `price: 0` afișează „Gratuit”; un preț absent nu este presupus gratuit. Timestamp-urile cu fus orar sunt afișate în `Europe/Bucharest`; cele fără offset păstrează ora furnizată. Backend-ul ar trebui să emită ISO 8601 cu offset. Linkurile sursă acceptă numai HTTP(S), se deschid în filă nouă și au `noopener noreferrer`.
+`description`, `end_at`, every `venue` field, `price_text`, `is_free`, `source_category` and `image_url` may be `null`.
+
+`GET /api/events/{id}` returns one event object with the same shape, or HTTP 404 `{"detail": "Event not found"}`. The client reports a 404 with the distinct error code `not-found` and shows "Evenimentul nu a fost găsit.".
+
+Frontend routes: `/` is the home page with the event list; `/evenimente/:id` is the event detail page (`EventDetailPage`). The Vite dev server falls back to `index.html` for client routes; a static host must do the same for `/evenimente/*`.
+
+Client rules:
+
+- The event is normalized to `{ id, key, title, description, startAt, endAt, venueName, venueAddress, price, sourceName, sourceUrl, imageUrl }`.
+- Price: `is_free === true` shows "Gratuit"; otherwise `price_text`, otherwise "Preț neprecizat". Free admission is never assumed.
+- `source_url` and `image_url` are accepted only when they are absolute HTTP(S) URLs. Source links open in a new tab with `noopener noreferrer`; external images use `referrerPolicy="no-referrer"`. A missing or broken image is replaced by a placeholder.
+- Timestamps with an offset are shown in `Europe/Bucharest`; timestamps without an offset keep the provided wall-clock time. When `end_at` is later than `start_at` a range is shown ("12 noiembrie 2026, 21:00 – 23:00" on the same day, otherwise both dates).
+- The description is rendered as plain text (`white-space: pre-line`), never as HTML.
 
 ## Stări și verificări
 

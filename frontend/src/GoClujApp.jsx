@@ -1,3 +1,5 @@
+import { useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import EventsList from './components/EventsList.jsx'
 import SiteFooter from './components/SiteFooter.jsx'
 import SiteHeader from './components/SiteHeader.jsx'
@@ -5,8 +7,14 @@ import useEvents from './hooks/useEvents.js'
 import './site.css'
 
 function GoClujApp() {
-  const { status, events, error, reload } = useEvents()
+  const { status, events, total, error, reload, hasMore, loadMore, loadingMore, loadMoreError } = useEvents()
   const loading = status === 'loading'
+  const { hash } = useLocation()
+
+  // Arriving from another route (e.g. the detail page) does not scroll to the hash by itself.
+  useEffect(() => {
+    if (hash) document.getElementById(hash.slice(1))?.scrollIntoView()
+  }, [hash])
 
   function refreshEvents() {
     reload()
@@ -44,10 +52,11 @@ function GoClujApp() {
               <h2 id="events-heading" className="font-display text-3xl leading-tight sm:text-[2.4rem]">Evenimente în Cluj</h2>
             </div>
             <p className="text-sm text-[var(--muted)]" aria-live="polite">
-              {status === 'success' ? `${events.length} ${events.length === 1 ? 'eveniment' : 'evenimente'} în listă` : ''}
+              {status === 'success' ? `${total} ${total === 1 ? 'eveniment' : 'evenimente'} în listă` : ''}
             </p>
           </div>
-          <EventsList status={status} events={events} error={error} onRetry={reload} />
+          <EventsList status={status} events={events} error={error} onRetry={reload}
+            hasMore={hasMore} loadingMore={loadingMore} loadMoreError={loadMoreError} onLoadMore={loadMore} />
         </section>
       </main>
       <SiteFooter />

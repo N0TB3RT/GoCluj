@@ -1,7 +1,7 @@
 import EventCard from './EventCard.jsx'
 import LoadingScreen from './LoadingScreen.jsx'
 
-export default function EventsList({ status, events, error, onRetry }) {
+export default function EventsList({ status, events, error, onRetry, hasMore = false, loadingMore = false, loadMoreError = null, onLoadMore }) {
   if (status === 'loading') return <LoadingScreen />
   if (status === 'error') return (
     <div className="empty-state" role="alert">
@@ -20,8 +20,20 @@ export default function EventsList({ status, events, error, onRetry }) {
     </div>
   )
   return (
-    <div className="event-grid grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-      {events.map((event) => <EventCard key={event.key} event={event} />)}
-    </div>
+    <>
+      <div className="event-grid grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {events.map((event) => <EventCard key={event.key} event={event} />)}
+      </div>
+      {(hasMore || loadMoreError) && (
+        <div className="load-more">
+          {loadMoreError && <p className="load-more-error" role="alert">{loadMoreError}</p>}
+          {hasMore && (
+            <button type="button" className="secondary-button" onClick={onLoadMore} disabled={loadingMore} aria-busy={loadingMore}>
+              {loadingMore ? 'Se încarcă…' : loadMoreError ? 'Încearcă din nou' : 'Încarcă mai multe'}
+            </button>
+          )}
+        </div>
+      )}
+    </>
   )
 }
