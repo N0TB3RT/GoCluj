@@ -154,5 +154,5 @@ If you add a dependency, rebuild that service with `docker compose up --build <s
 ## Documentation
 
 - [Implementation plan](docs/IMPLEMENTATION_PLAN.md): goals, epics, sprints, decisions
-- [Scraper design](docs/data/scraper-design.md): how event collection works and why
+- [Scraper design](docs/scrape/scraper-design.md): how event collection works and why
 - [Scraper README](scrape/README.md): running scrapers and adding a new source

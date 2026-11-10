@@ -1,7 +1,7 @@
 # GoCluj scraper
 
 Collects public events in Cluj-Napoca from ticketing sites and pushes them to the GoCluj backend.
-Design rationale: [../docs/data/scraper-design.md](../docs/data/scraper-design.md).
+Design rationale: [../docs/scrape/scraper-design.md](../docs/scrape/scraper-design.md).
 
 ## Architecture
 
