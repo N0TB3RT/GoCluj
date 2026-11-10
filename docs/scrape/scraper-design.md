@@ -3,7 +3,7 @@
 > Owner: Data team. Covers DATA-01..05. Code lives in [`scrape/`](../../scrape/README.md).
 > Last updated: 2026-11-10.
 
-**Status.** Implemented: Scrapy framework and settings, `Event` model, parsing helpers, `BaseEventSpider`, runner (`run.py`), `RunSummary`, `ingest.py`, unit tests. LiveTickets spider (`livetickets.py`, T11; one live run on 2026-11-10). To do: the iaBilet spider (`iabilet.py`) is a stub; of the shared changes (§6) S1-S4 and S6-S8 are done, S5 is open; the backend ingest endpoint (`POST /api/ingest/events`, BE-02 / PRJ-01) does not exist, so ingest runs in dry-run mode (`INGEST_URL` unset).
+**Status.** Implemented: Scrapy framework and settings, `Event` model, parsing helpers, `BaseEventSpider`, runner (`run.py`), `RunSummary`, `ingest.py`, unit tests. LiveTickets spider (`livetickets.py`, T11; `image_url`, T12; one live run on 2026-11-10). To do: the iaBilet spider (`iabilet.py`) is a stub; of the shared changes (§6) S1-S4 and S6-S8 are done, S5 is open; the backend ingest endpoint (`POST /api/ingest/events`, BE-02 / PRJ-01) does not exist, so ingest runs in dry-run mode (`INGEST_URL` unset).
 
 ## 1. Goals and constraints
 
@@ -188,7 +188,7 @@ Adding source 3..6 costs one spider file (~60-120 lines), 2-3 fixtures and one t
 | T9 | iaBilet detail mapping (tariffs, title prefix, breadcrumb category) | moderate | `spiders/iabilet.py`, tests | T2-T5, T8 |
 | T10 | **Done.** LiveTickets terms check (INV-01), recorded in IMPLEMENTATION_PLAN §9 | routine (owner) | `docs/IMPLEMENTATION_PLAN.md` | – |
 | T11 | **Done.** LiveTickets fixtures + spider | moderate | `spiders/livetickets.py`, `tests/fixtures/livetickets/*`, `tests/test_livetickets.py` | T2-T6, T10 |
-| T12 | Open. LiveTickets image URL template (browser network tab) | routine | `spiders/livetickets.py` | T11 |
+| T12 | **Done.** LiveTickets image URL template (R9 in the source spec) | routine | `spiders/livetickets.py`, `models.py` | T11 |
 | T13 | **Partly done:** LiveTickets live run done (2026-11-10). Full live run via `run.py`; check summaries and timing; tune `custom_settings` | moderate | settings, spiders | T9, T11 |
 | T14 | Contract alignment once PRJ-01 / BE-02 land (schema test, ingest URL) | hard (cross-team) | `models.py`, `ingest.py`, tests | PRJ-01, BE-02 |
 

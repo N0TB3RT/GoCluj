@@ -96,6 +96,13 @@ class Event(BaseModel):
     def _clean(cls, value: Any) -> str | None:
         return clean_text(value)
 
+    @field_validator("image_url", mode="before")
+    @classmethod
+    def _image_url(cls, value: Any) -> str | None:
+        if not isinstance(value, str) or not (url := value.strip()):
+            return None
+        return url if url.lower().startswith(("http://", "https://")) else None
+
     @field_validator("description", mode="before")
     @classmethod
     def _description(cls, value: Any) -> str | None:

@@ -5,7 +5,7 @@
 | Source | LiveTickets, https://www.livetickets.ro |
 | Spider | `livetickets` (`scrape/gocluj_scraper/spiders/livetickets.py`) |
 | Status | Implemented (T11, commit 4403e5e); one live run on 2026-11-10 |
-| Tasks | T10 (terms check, done), T11 (fixtures + spider, done), T12 (image URL, open) |
+| Tasks | T10 (terms check, done), T11 (fixtures + spider, done), T12 (image URL, done) |
 | Site checked | 2026-11-10 (real API capture and one live run) |
 | Shared material | Model rules, shared changes S1-S8, counters, scalability, checklist: [../scraper-design.md](../scraper-design.md) |
 
@@ -88,7 +88,7 @@ So `is_cluj` is the cheap pre-filter on list `city`; the detail check compares t
 | `country` | string; key missing on city-less items | not used |
 | `currency` | `{id, code, name, symbol}` | `code` goes into `price_text` |
 | `description` | HTML with entities, `<br />`, `&nbsp;` | `description` |
-| `images[]` | `path` like `<slug>/Background_MEDIUM.jpg` | `image_url` (open, R9) |
+| `images[]` | `path` like `<slug>/Background_MEDIUM.jpg` | `image_url` (R9) |
 | `organizer_followers` | number | never stored |
 
 ### Detail (`/public/events/getbyurl`)
@@ -120,7 +120,7 @@ Keys seen: `id, name, start_date, end_date, ticket_count, remaining_count, seati
 | `venue.lat`, `lng` | detail `location.lat/lng` | 0.0 means unknown: `None` unless both are non-zero |
 | `price_text` | `format_price([price_min, price_max], currency["code"])` from the list | `None` when list `price_max` is 0 or missing (R7) |
 | `is_free` | not set | derived from `price_text`, so `None` for unknown price |
-| `image_url` | not set | until T12 |
+| `image_url` | `IMAGE_ROOT` + `images[].path` of a Background image (detail first, then list item) | R9 |
 | `source_category` | name of the first detail `item_tags` entry with `type == "Category"`, else `None` | raw hint only (R10) |
 | `categories` | not set | DATA-03 |
 
@@ -136,7 +136,7 @@ Keys seen: `id, name, start_date, end_date, ticket_count, remaining_count, seati
 | R6 | Repeated events | Separate items, each with its own slug and `event_id` | One event per item; no merge |
 | R7 | Price 0 | Some items have `price_max == 0`, mostly club nights; meaning (free vs. no online price) unverified | `price_text = None`, so `is_free` stays `None` (unknown). Do not claim "free" |
 | R8 | Ends after midnight | `end_date` always set; parties often end 05:00 next day | Pass through unchanged. Past check uses `end_at`, so an event still running at 01:00 is kept |
-| R9 | Image | `images[].path` is relative; CDN prefix unknown (`imageRoot` is `https://livetickets-cdn.azureedge.net` but two guessed paths returned 404) | Leave `image_url` unset until T12 |
+| R9 | Image | `images[].path` is relative. Verified 2026-11-10: `https://livetickets-cdn.azureedge.net/itemimages/{path}` returns 200 without token or referrer (wrong path: 404). `token` is only a cache-buster. Detail sizes: Background SQUARE/ZOOM/MEDIUM, Ticket SQUARE/REGULAR/THUMB; declared width/height are upper bounds (fit inside, not cropped), so the frontend uses `object-fit` | Background only, preferring MEDIUM, then SQUARE, ZOOM, any; never use `token`. The model keeps only absolute http(s) URLs |
 | R10 | Category | `Category` tags exist in detail `item_tags`; live run: 16 of 31 had none; values "concert" (6), "Trending events" (3), "divertisment" (2), "Evenimente recomandate" (2), "art" (1), "open bar" (1) | `source_category` = first Category name. Some values are promotional labels, not genres: DATA-03 treats it as a raw hint |
 | R11 | Sensitive data | Detail `fb_pixel`; `item_tags` entries carry `ga_id`, `fb_pixel`, `tiktok_pixel`, `contactEmail`; `organizer.contactEmail` | The spider reads only the keys in section 4; never store, log or commit these. Fixtures were stripped (tags reduced to `id, url, name, type`, organizer to `name, url`, image `token` removed). Also not stored: `organizer_followers` |
 | R12 | HTML description | Entities, `<br />`, `&nbsp;` | Pass raw to the model (S2); do not strip in the spider |
@@ -188,7 +188,7 @@ Fixtures in `scrape/tests/fixtures/livetickets/` (stripped as described in R11):
 | Why detail `price_max` differs from the list | Open; the spider uses the list values |
 | `status` values other than "online" | Open; allowlist `{"online"}`, the counters will reveal others |
 | `time_slots` structure and whether `start_date` covers them | Open; emit one event, count and warn |
-| Image URL path prefix | Open (T12); `image_url` unset |
+| Image URL path prefix | Resolved 2026-11-10 (T12): `.../itemimages/{path}` (R9) |
 | Server-side city filter or query parameters | Open; not tested |
 | API limits (max list size, rate limits) | Open; about 33 requests per run, shared politeness settings |
 | Credit line / shorter descriptions | Open; needed if the project goes public (IMPLEMENTATION_PLAN §9) |

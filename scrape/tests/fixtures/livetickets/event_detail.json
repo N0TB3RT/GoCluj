@@ -59,6 +59,27 @@
       "width": 800,
       "height": 450,
       "size": "MEDIUM"
+    },
+    {
+      "name": "Background",
+      "path": "balul-dintilor-de-lapte-1/Background_SQUARE.jpg",
+      "width": 600,
+      "height": 600,
+      "size": "SQUARE"
+    },
+    {
+      "name": "Background",
+      "path": "balul-dintilor-de-lapte-1/Background_ZOOM.jpg",
+      "width": 1920,
+      "height": 960,
+      "size": "ZOOM"
+    },
+    {
+      "name": "Ticket",
+      "path": "balul-dintilor-de-lapte-1/Ticket_THUMB.jpg",
+      "width": 100,
+      "height": 100,
+      "size": "THUMB"
     }
   ],
   "status": "online",

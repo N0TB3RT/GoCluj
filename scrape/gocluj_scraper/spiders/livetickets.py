@@ -10,6 +10,10 @@ IMPLEMENTATION_PLAN section 9). Flow:
 3. ``parse_event``: confirm ``location.city == "Cluj-Napoca"`` in the detail, require
    status "online", then build the event from the list item plus a few detail keys.
 
+``image_url`` is ``IMAGE_ROOT`` + an ``images[].path`` (detail first, then the list
+item), preferring the Background MEDIUM size. The image ``token`` is only a cache-buster
+and is never used.
+
 Only the detail keys named below are read; the rest (organizer, company, tags, ...) is
 never stored or logged. Unexpected response shapes raise, so the run fails visibly.
 """
@@ -25,10 +29,27 @@ API = "https://api.livetickets.ro/public/events"
 EVENT_URL = "https://www.livetickets.ro/bilete/"
 # Without this the API answers Scrapy's default Accept header with XML.
 JSON_HEADERS = {"Accept": "application/json"}
+IMAGE_ROOT = "https://livetickets-cdn.azureedge.net/itemimages/"
+# Preferred Background sizes; declared sizes are upper bounds (fit inside, not cropped).
+IMAGE_SIZES = ("MEDIUM", "SQUARE", "ZOOM")
 
 
 def _is_cluj_napoca(city: str | None) -> bool:
     return strip_accents(city or "").lower().strip() == "cluj-napoca"
+
+
+def _image_url(images) -> str | None:
+    """Pick a Background image (MEDIUM, SQUARE, ZOOM, then any) and build its CDN URL."""
+    backgrounds = [
+        i
+        for i in images or []
+        if isinstance(i, dict) and i.get("name") == "Background" and i.get("path")
+    ]
+    if not backgrounds:
+        return None
+    rank = {size: n for n, size in enumerate(IMAGE_SIZES)}
+    best = min(backgrounds, key=lambda i: rank.get(i.get("size"), len(rank)))
+    return IMAGE_ROOT + quote(best["path"], safe="/")
 
 
 class LiveticketsSpider(BaseEventSpider):
@@ -101,6 +122,7 @@ class LiveticketsSpider(BaseEventSpider):
                 format_price([item.get("price_min"), price_max], currency) if price_max else None
             ),
             source_category=category,
+            image_url=_image_url(detail.get("images")) or _image_url(item.get("images")),
         )
         if event is not None:
             yield event

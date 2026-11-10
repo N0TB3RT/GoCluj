@@ -188,3 +188,12 @@ def test_external_id_is_stripped():
 def test_source_category_is_cleaned():
     assert make().source_category is None
     assert make(source_category="  Muzică \n live ").source_category == "Muzică live"
+
+
+def test_image_url_keeps_absolute_http():
+    assert make(image_url=" https://cdn.example/a.jpg ").image_url == "https://cdn.example/a.jpg"
+
+
+@pytest.mark.parametrize("url", ["/img/a.jpg", "javascript:alert(1)", "", "  ", None])
+def test_image_url_drops_non_http(url):
+    assert make(image_url=url).image_url is None
