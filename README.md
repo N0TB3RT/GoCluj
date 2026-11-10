@@ -63,10 +63,10 @@ postgresql+psycopg2://<POSTGRES_USER>:<POSTGRES_PASSWORD>@db:5432/<POSTGRES_DB>
 ### Step 4: Start the project
 
 ```bash
-docker compose up --build
+docker compose up --build -V
 ```
 
-The first run takes a few minutes while Docker downloads the images and installs the dependencies. Later starts are fast. Leave this terminal open: it shows the logs from every service. Stop everything with `Ctrl+C`.
+`-V` recreates anonymous volumes so the frontend's `node_modules` is rebuilt after dependency changes. The first run takes a few minutes while Docker downloads the images and installs the dependencies. Later starts are fast. Leave this terminal open: it shows the logs from every service. Stop everything with `Ctrl+C`.
 
 To run it in the background instead, use `docker compose up --build -d` and stop it with `docker compose down`.
 
