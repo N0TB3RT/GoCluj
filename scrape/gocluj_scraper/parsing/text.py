@@ -1,8 +1,10 @@
 """Pure text helpers: cleaning, URLs, price/free detection, Romanian dates."""
 
 import html
+import math
 import re
 import unicodedata
+from collections.abc import Iterable
 from datetime import date, datetime, timedelta
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from zoneinfo import ZoneInfo
@@ -79,6 +81,31 @@ def detect_is_free(price_text: str | None) -> bool | None:
     if not amounts:
         return None
     return all(a == 0 for a in amounts)
+
+
+def _amount(value) -> float | None:
+    if isinstance(value, str):
+        value = value.strip().replace(",", ".")
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _format_number(number: float) -> str:
+    return str(int(number)) if number == int(number) else f"{number:g}"
+
+
+def format_price(amounts: Iterable, currency: str | None = None) -> str | None:
+    """Format amounts as 'min - max CUR' (or 'x CUR' when all equal); None if no usable amount."""
+    values = [a for a in map(_amount, amounts) if a is not None and math.isfinite(a)]
+    if not values:
+        return None
+    low, high = min(values), max(values)
+    text = _format_number(low)
+    if high != low:
+        text = f"{text} - {_format_number(high)}"
+    return f"{text} {currency}" if currency else text
 
 
 def is_cluj(text: str | None) -> bool:

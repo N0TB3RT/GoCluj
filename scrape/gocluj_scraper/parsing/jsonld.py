@@ -3,6 +3,8 @@
 import json
 from typing import Any
 
+from gocluj_scraper.parsing.text import format_price
+
 
 def _is_event(node: Any) -> bool:
     if not isinstance(node, dict):
@@ -86,29 +88,16 @@ def _to_float(value: Any) -> float | None:
         return None
 
 
-def _num(value: Any) -> str | None:
-    number = _to_float(value)
-    if number is None:
-        return None
-    return str(int(number)) if number == int(number) else f"{number:g}"
-
-
 def _price_text(offers: Any) -> str | None:
     """Build e.g. '59 - 99 RON' from an Offer, AggregateOffer or a list of offers."""
-    prices: list[str] = []
+    amounts: list[Any] = []
     currency = None
     for offer in offers if isinstance(offers, list) else [offers]:
         if not isinstance(offer, dict):
             continue
         currency = currency or offer.get("priceCurrency")
-        for key in ("lowPrice", "price", "highPrice"):
-            if (p := _num(offer.get(key))) is not None:
-                prices.append(p)
-    if not prices:
-        return None
-    values = sorted(set(prices), key=float)
-    text = values[0] if len(values) == 1 else f"{values[0]} - {values[-1]}"
-    return f"{text} {currency}" if currency else text
+        amounts.extend(offer.get(key) for key in ("lowPrice", "price", "highPrice"))
+    return format_price(amounts, currency)
 
 
 def jsonld_to_fields(data: dict) -> dict:
