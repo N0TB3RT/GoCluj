@@ -151,3 +151,18 @@ def test_address_does_not_duplicate_city():
         assert v["city"] == "Cluj-Napoca"
     assert venue("Strada X 12")["address"] == "Strada X 12, Cluj-Napoca"
     assert venue("Strada Țării 1, Cluj-Napoca")["address"] == "Strada Țării 1, Cluj-Napoca"
+    postcode = "Strada Bucium 2, Cluj-Napoca 400535"
+    assert venue(postcode)["address"] == postcode
+    assert venue("Str. Horea 5, CLUJ-NAPOCA, jud. Cluj")["address"] == (
+        "Str. Horea 5, CLUJ-NAPOCA, jud. Cluj"
+    )
+
+
+def test_address_city_must_match_whole_words():
+    def address(street, city):
+        node = {"location": {"address": {"streetAddress": street, "addressLocality": city}}}
+        return jsonld_to_fields({"name": "X", **node})["venue"]["address"]
+
+    assert address("Strada Clujului 5", "Cluj") == "Strada Clujului 5, Cluj"
+    assert address("Strada Napoca 5", "Cluj-Napoca") == "Strada Napoca 5, Cluj-Napoca"
+    assert address("Str. Mare 1, Cluj 400000", "Cluj") == "Str. Mare 1, Cluj 400000"

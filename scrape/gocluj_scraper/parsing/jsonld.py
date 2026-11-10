@@ -1,6 +1,7 @@
 """Minimal schema.org Event extraction from JSON-LD blocks."""
 
 import json
+import re
 from collections.abc import Callable
 from typing import Any
 
@@ -92,7 +93,13 @@ def _address(value: Any) -> tuple[str | None, str | None]:
     if not isinstance(value, dict):
         return None, None
     street, city = value.get("streetAddress"), value.get("addressLocality")
-    if street and city and _norm(street).endswith(_norm(city)):
+    # Skip the city when the street already names it as a whole word sequence
+    # (e.g. "Strada Bucium 2, Cluj-Napoca 400535"); "Clujului" does not count as "Cluj".
+    if (
+        street
+        and city
+        and re.search(rf"(?<![\w-]){re.escape(_norm(city))}(?![\w-])", _norm(street))
+    ):
         return street, city
     return ", ".join(p for p in (street, city) if p) or None, city
 

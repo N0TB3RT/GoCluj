@@ -130,6 +130,12 @@ class Event(BaseModel):
     def _finalize(self) -> "Event":
         if self.is_free is None:
             self.is_free = detect_is_free(self.price_text)
-        if self.end_at is not None and self.end_at <= self.start_at:
+        end = self.end_at
+        if end is not None and end <= self.start_at:
             self.end_at = None
+        elif end is not None and (end.hour, end.minute, end.second) == (23, 59, 59):
+            # A same-day date-only end (S1 -> 23:59:59) carries no real end time.
+            # An explicit 23:59:59 end on the start day is dropped too (indistinguishable).
+            if self.start_at.astimezone(end.tzinfo).date() == end.date():
+                self.end_at = None
         return self

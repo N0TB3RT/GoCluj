@@ -48,9 +48,7 @@ def test_make_event_invalid_returns_none():
 def test_make_event_past_returns_none():
     spider = DummySpider()
     past = (datetime.now(TZ) - timedelta(days=2)).isoformat()
-    event = spider.make_event(
-        title="T", source_url="https://x.ro", external_id="1", start_at=past
-    )
+    event = spider.make_event(title="T", source_url="https://x.ro", external_id="1", start_at=past)
     assert event is None
 
 
@@ -141,20 +139,44 @@ def test_end_not_after_start_becomes_none(end_at):
     assert make(end_at=end_at).end_at is None
 
 
-def test_same_day_date_only_end_is_kept():
-    assert make(end_at="2099-01-01").end_at == datetime(2099, 1, 1, 23, 59, 59, tzinfo=TZ)
+def test_same_day_date_only_end_is_dropped():
+    # iaBilet: endDate == startDate's day; 23:59:59 would be an invented end time.
+    assert make(end_at="2099-01-01").end_at is None
 
 
-def test_event_happening_today_with_date_only_end_is_not_past():
+def test_next_day_date_only_end_is_kept():
+    assert make(end_at="2099-01-02").end_at == datetime(2099, 1, 2, 23, 59, 59, tzinfo=TZ)
+
+
+def test_explicit_end_of_start_day_is_dropped():
+    # Edge: an explicit 23:59:59 on the start day is indistinguishable from S1 output.
+    assert make(end_at="2099-01-01T23:59:59").end_at is None
+    assert make(end_at="2099-01-01T23:59:00").end_at == datetime(2099, 1, 1, 23, 59, tzinfo=TZ)
+
+
+def test_multi_day_event_ending_today_is_not_past():
     now = datetime.now(TZ)
     event = DummySpider().make_event(
         title="T",
         source_url="https://x.ro",
         external_id="1",
-        start_at=now - timedelta(minutes=1),
+        start_at=now - timedelta(days=1),
         end_at=now.date().isoformat(),
     )
     assert event is not None
+
+
+def test_started_same_day_event_with_date_only_end_is_past():
+    # Same-day date-only end becomes None, so the past check falls back to start_at.
+    start = datetime.now(TZ) - timedelta(seconds=1)
+    event = DummySpider().make_event(
+        title="T",
+        source_url="https://x.ro",
+        external_id="1",
+        start_at=start,
+        end_at=start.date().isoformat(),
+    )
+    assert event is None
 
 
 def test_description_html_and_line_breaks():
