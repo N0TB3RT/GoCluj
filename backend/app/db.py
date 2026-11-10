@@ -14,7 +14,8 @@ for _prefix in ("postgresql://", "postgres://"):
         DATABASE_URL = "postgresql+psycopg2://" + DATABASE_URL[len(_prefix) :]
         break
 
-engine = create_engine(DATABASE_URL)
+# pre_ping replaces pooled connections the DB closed (e.g. after a restart) instead of a 500.
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
