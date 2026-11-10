@@ -1,10 +1,13 @@
 """Spider for iaBilet: Cluj listings followed by Event JSON-LD detail pages."""
 
-import json
 import re
 from urllib.parse import urlsplit
 
-from gocluj_scraper.parsing.jsonld import extract_jsonld_events, jsonld_to_fields
+from gocluj_scraper.parsing.jsonld import (
+    breadcrumb_name,
+    extract_jsonld_events,
+    jsonld_to_fields,
+)
 from gocluj_scraper.parsing.text import canonical_url, format_price
 from gocluj_scraper.spiders.base import BaseEventSpider
 
@@ -16,33 +19,9 @@ _TITLE_PREFIX_RE = re.compile(
 
 
 def _source_category(response) -> str | None:
-    """Read the category breadcrumb without requiring valid optional JSON-LD."""
-    for raw in response.css('script[type="application/ld+json"]::text').getall():
-        try:
-            nodes = [json.loads(raw)]
-        except ValueError:
-            continue
-        while nodes:
-            node = nodes.pop()
-            if isinstance(node, list):
-                nodes.extend(reversed(node))
-                continue
-            if not isinstance(node, dict):
-                continue
-            nodes.append(node.get("@graph"))
-            types = node.get("@type")
-            if types != "BreadcrumbList" and not (
-                isinstance(types, list) and "BreadcrumbList" in types
-            ):
-                continue
-            entries = node.get("itemListElement")
-            if not isinstance(entries, list) or len(entries) < 3:
-                continue
-            entry = entries[2]
-            name = entry.get("name") if isinstance(entry, dict) else None
-            if isinstance(name, str):
-                return name.removesuffix(" în Cluj-Napoca")
-    return None
+    """Read the category from the second breadcrumb entry (position 2)."""
+    name = breadcrumb_name(response, 2)
+    return name.removesuffix(" în Cluj-Napoca") if name else None
 
 
 class IabiletSpider(BaseEventSpider):
@@ -103,6 +82,9 @@ class IabiletSpider(BaseEventSpider):
             response.css("[data-tariff-sell-price]::attr(data-tariff-sell-price)").getall(), "RON"
         )
         source_category = _source_category(response)
+        # Image URLs are signed (resized variants return 400). The JSON-LD image is a 506x716
+        # poster (cards); og:image is a fit-in 1200x1200 landscape banner (detail page).
+        og_image = response.css('meta[property="og:image"]::attr(content)').get()
         for data in events:
             if (data.get("eventStatus") or "").endswith("EventCancelled"):
                 self.skip("cancelled", response.url)
@@ -115,6 +97,7 @@ class IabiletSpider(BaseEventSpider):
             if price_text is not None:
                 fields["price_text"] = price_text
             fields["source_category"] = source_category
+            fields["image_url_large"] = og_image
             item = self.make_event(**fields)
             if item is not None:
                 yield item
