@@ -99,7 +99,7 @@
 .detail-facts { margin: 28px 0; }
 .detail-facts dd { font-size: 1rem; }
 .detail-address { display: block; color: var(--muted); font-size: .88rem; }
-.event-description { max-width: 70ch; margin: 0 0 32px; color: #d5dfd8; line-height: 1.75; white-space: pre-line; overflow-wrap: anywhere; }
+.event-description { max-width: 70ch; margin: 40px 0 32px; padding-top: 32px; border-top: 1px solid var(--line); color: #d5dfd8; line-height: 1.75; white-space: pre-line; overflow-wrap: anywhere; }
 .detail-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
 .detail-actions .primary-button { flex: 0 1 auto; }
 @media (max-width: 480px) {

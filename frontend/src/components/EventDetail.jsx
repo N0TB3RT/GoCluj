@@ -46,7 +46,7 @@ export default function EventDetail({ status, event, error, onRetry }) {
         <div><dt>Preț</dt><dd>{event.price}</dd></div>
         {event.sourceName && <div><dt>Sursă</dt><dd>{event.sourceName}</dd></div>}
       </dl>
-      {event.description && <p className="event-description">{event.description}</p>}
+      {/* The source link stays above the description so it is visible without scrolling. */}
       <div className="detail-actions">
         {event.sourceUrl ? (
           <a className="primary-button" href={event.sourceUrl} target="_blank" rel="noopener noreferrer"
@@ -55,6 +55,7 @@ export default function EventDetail({ status, event, error, onRetry }) {
           </a>
         ) : <p className="source-unavailable">Sursa originală nu este disponibilă.</p>}
       </div>
+      {event.description && <p className="event-description">{event.description}</p>}
     </article>
   )
 }
