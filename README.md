@@ -94,16 +94,20 @@ To run it in the background instead, use `docker compose up --build -d` and stop
    - port `5432`
    - the user, password and database from your `.env`
 
-The database tables are created by Alembic migrations, which run automatically every time the backend starts. After a schema change that needs a clean start (or if your local DB was created from the old `schema1.sql`), reset it with `docker compose down -v` (deletes local data).
+The database tables are created by Alembic migrations, which run automatically every time the backend starts, so you never need to run `alembic upgrade head` yourself. After a schema change that needs a clean start (or if your local DB was created from the old `schema1.sql`), reset it with `docker compose down -v` (deletes local data).
 
-### Step 6: Run the scrapers (optional)
+> On a fresh database the event list is empty. That's expected: events arrive only when you run the scrapers (Step 6).
 
-The scrapers don't start with `docker compose up`. Run them on demand:
+### Step 6: Load events with the scrapers
+
+The scrapers don't start with `docker compose up`. With the stack running, run them on demand:
 
 ```bash
 docker compose --profile scraper build scraper
 docker compose run --rm scraper
 ```
+
+This crawls every source (iaBilet and LiveTickets), then sends the events to the backend (the "ingest" step, using `INGEST_URL` and `INGEST_TOKEN` from Step 3). It takes about 4 minutes and then exits. Refresh http://localhost:3000 to see the events. Nothing is scheduled yet, so run it again whenever you want fresh data; existing events are updated, not duplicated.
 
 To try a single source with one listing page:
 
@@ -131,7 +135,14 @@ docker compose run --rm --no-deps backend pytest -q
 docker compose run --rm --no-deps backend ruff check .
 ```
 
-See [`backend/README.md`](backend/README.md). Frontend tests will be added in FE-01.
+See [`backend/README.md`](backend/README.md).
+
+Frontend lint and tests:
+
+```bash
+docker compose run --rm --no-deps frontend npm test
+docker compose run --rm --no-deps frontend npm run lint
+```
 
 ---
 
@@ -158,7 +169,9 @@ If you add a dependency, rebuild that service with `docker compose up --build <s
 ## Troubleshooting
 
 - **`port is already allocated`:** another program is using port 3000, 8000, 5050 or 5432 (often a local PostgreSQL). Stop that program, or change the left-hand port in `docker-compose.yml` (e.g. `"5433:5432"`).
-- **Backend fails with `DATABASE_URL environment variable is not set`:** your `.env` is missing or isn't in the project root. Repeat Step 3.
+- **Docker warns `The "DATABASE_URL" variable is not set` and the backend exits with `Could not parse SQLAlchemy URL`:** your `.env` is missing or isn't in the project root. Repeat Step 3.
+- **The website shows no events:** the scrapers haven't run yet on this database. Run Step 6.
+- **The scraper logs `Rejected by backend (HTTP 401)`:** `INGEST_TOKEN` is empty or differs between what the backend and the scraper read. Set it in `.env` and restart the backend (`docker compose up -d backend`).
 - **Backend can't connect to the database:** check that the user, password and database name in `DATABASE_URL` match `POSTGRES_*`, and that the host is `db`, not `localhost`.
 - **Database tables are missing or outdated after a schema change:** Migrations run on backend start; if the DB still comes from the old `schema1.sql`, reset it (see the table above).
 - **`docker: command not found` or "cannot connect to the Docker daemon":** Docker Desktop isn't installed or isn't running.
