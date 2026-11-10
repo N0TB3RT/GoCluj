@@ -1,9 +1,11 @@
 """Pydantic models: the single place where scraped data is validated and normalized."""
 
+import re
 from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from w3lib.html import remove_tags
 
 from gocluj_scraper.parsing.text import (
     canonical_url,
@@ -23,6 +25,10 @@ CATEGORIES = [
     "Sport",
     "Altele",
 ]
+
+_BR_RE = re.compile(r"<br\s*/?>", re.IGNORECASE)
+_BLOCK_END_RE = re.compile(r"</(?:p|div|li|h[1-6]|ul|ol)\s*>", re.IGNORECASE)
+_DATE_ONLY_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
 class Venue(BaseModel):
@@ -54,7 +60,7 @@ class Event(BaseModel):
 
     source_name: str
     source_url: str
-    external_id: str | None = None
+    external_id: str
     title: str
     description: str | None = None
     start_at: datetime
@@ -63,7 +69,9 @@ class Event(BaseModel):
     price_text: str | None = None
     is_free: bool | None = None
     categories: list[str] = Field(default_factory=list)
+    source_category: str | None = None
     image_url: str | None = None
+    image_url_large: str | None = None
 
     @field_validator("source_url", mode="before")
     @classmethod
@@ -77,10 +85,32 @@ class Event(BaseModel):
             raise ValueError("title must not be empty")
         return title
 
-    @field_validator("description", "price_text", mode="before")
+    @field_validator("external_id", mode="before")
+    @classmethod
+    def _external_id(cls, value: Any) -> str:
+        if not (external_id := clean_text(value)):
+            raise ValueError("external_id must not be empty")
+        return external_id
+
+    @field_validator("price_text", "source_category", mode="before")
     @classmethod
     def _clean(cls, value: Any) -> str | None:
         return clean_text(value)
+
+    @field_validator("image_url", "image_url_large", mode="before")
+    @classmethod
+    def _image_url(cls, value: Any) -> str | None:
+        if not isinstance(value, str) or not (url := value.strip()):
+            return None
+        return url if url.lower().startswith(("http://", "https://")) else None
+
+    @field_validator("description", mode="before")
+    @classmethod
+    def _description(cls, value: Any) -> str | None:
+        if value is None:
+            return None
+        text = _BR_RE.sub("\n", _BLOCK_END_RE.sub("\n", str(value)))
+        return clean_text(remove_tags(text), multiline=True)
 
     @field_validator("start_at", mode="before")
     @classmethod
@@ -90,10 +120,22 @@ class Event(BaseModel):
     @field_validator("end_at", mode="before")
     @classmethod
     def _end(cls, value: Any) -> datetime | None:
-        return None if value in (None, "") else _to_datetime(value)
+        if value in (None, ""):
+            return None
+        if isinstance(value, str) and _DATE_ONLY_RE.fullmatch(value.strip()):
+            return _to_datetime(value).replace(hour=23, minute=59, second=59)
+        return _to_datetime(value)
 
     @model_validator(mode="after")
-    def _derive_is_free(self) -> "Event":
+    def _finalize(self) -> "Event":
         if self.is_free is None:
             self.is_free = detect_is_free(self.price_text)
+        end = self.end_at
+        if end is not None and end <= self.start_at:
+            self.end_at = None
+        elif end is not None and (end.hour, end.minute, end.second) == (23, 59, 59):
+            # A same-day date-only end (S1 -> 23:59:59) carries no real end time.
+            # An explicit 23:59:59 end on the start day is dropped too (indistinguishable).
+            if self.start_at.astimezone(end.tzinfo).date() == end.date():
+                self.end_at = None
         return self

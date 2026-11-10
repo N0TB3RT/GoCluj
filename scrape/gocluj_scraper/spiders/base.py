@@ -13,9 +13,10 @@ from gocluj_scraper.parsing.text import TIMEZONE
 class BaseEventSpider(scrapy.Spider):
     """Base class for source spiders: fetch and extract only.
 
-    A source spider sets ``name`` and ``source_name`` and typically:
-    listing page -> keep Cluj cards (``is_cluj``) -> follow to the detail page ->
-    ``yield self.make_event(**fields)`` (skip ``None``) -> ``yield self.next_page(...)``.
+    A source spider sets ``name`` and ``source_name``. The crawl shape is up to the
+    spider: listing page -> detail page is one option, a JSON list + detail page is
+    another. Whatever the shape, drop records early with ``self.skip(reason, url)``,
+    ``yield self.make_event(**fields)`` (skip ``None``) and paginate with ``next_page``.
     Normalization, validation and stats live in ``make_event`` and ``models.Event``.
     """
 
@@ -29,6 +30,11 @@ class BaseEventSpider(scrapy.Spider):
         crawler = getattr(self, "crawler", None)
         if crawler is not None:
             crawler.stats.inc_value(key)
+
+    def skip(self, reason: str, url: str | None = None) -> None:
+        """Count a dropped event under ``events/<reason>`` and log it at DEBUG."""
+        self._inc_stat(f"events/{reason}")
+        self.logger.debug("Skipping event (%s): %s", reason, url)
 
     def make_event(self, **fields) -> dict | None:
         """Validate fields into an Event dict; None if invalid or already past."""
@@ -46,8 +52,7 @@ class BaseEventSpider(scrapy.Spider):
             )
             return None
         if (event.end_at or event.start_at) < datetime.now(ZoneInfo(TIMEZONE)):
-            self._inc_stat("events/past")
-            self.logger.debug("Skipping past event: %s", event.source_url)
+            self.skip("past", event.source_url)
             return None
         self._inc_stat("events/valid")
         return event.model_dump(mode="json")

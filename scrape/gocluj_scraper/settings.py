@@ -18,7 +18,6 @@ RETRY_TIMES = 3
 DOWNLOAD_TIMEOUT = 30
 CLOSESPIDER_TIMEOUT = 600
 CLOSESPIDER_ERRORCOUNT = 20
-DEPTH_LIMIT = 10
 
 # Dev-only HTTP cache to iterate on parsers offline
 HTTPCACHE_ENABLED = os.getenv("HTTPCACHE_ENABLED", "").lower() in ("1", "true")

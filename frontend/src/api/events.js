@@ -6,11 +6,17 @@ export class EventsApiError extends Error {
   }
 }
 
+export const DEFAULT_PAGE_SIZE = 20
+
 function text(value) {
   return typeof value === 'string' ? value.trim() : ''
 }
 
-export function safeSourceUrl(value) {
+function isObject(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function safeHttpUrl(value) {
   try {
     const url = new URL(value)
     return ['https:', 'http:'].includes(url.protocol) ? url.href : null
@@ -19,28 +25,54 @@ export function safeSourceUrl(value) {
   }
 }
 
-export function normalizeEvents(payload) {
-  if (!Array.isArray(payload) || payload.some((event) => !event || typeof event !== 'object' || Array.isArray(event))) {
-    throw new EventsApiError('Lista de evenimente primită nu are formatul așteptat.', 'invalid-response')
-  }
-  return payload.map((event, index) => ({
-    key: `${event.id ?? event.source_url ?? 'event'}-${index}`,
-    title: text(event.title) || 'Eveniment fără titlu',
-    date: text(event.start_time) || text(event.event_date),
-    venue: text(event.venue) || text(event.location_name) || 'Locație neprecizată',
-    price: event.is_free === true || event.price === 0
-      ? 'Gratuit'
-      : text(event.price_info) || text(event.price) || (typeof event.price === 'number' && Number.isFinite(event.price)
-        ? `${event.price} lei` : 'Preț neprecizat'),
-    sourceUrl: safeSourceUrl(event.source_url),
-  }))
+export const safeSourceUrl = safeHttpUrl
+export const safeImageUrl = safeHttpUrl
+
+function invalidResponse(message = 'Lista de evenimente primită nu are formatul așteptat.') {
+  return new EventsApiError(message, 'invalid-response')
 }
 
-export async function fetchEvents({
+export function normalizeEvent(raw) {
+  if (!isObject(raw)) throw invalidResponse('Evenimentul primit nu are formatul așteptat.')
+  const venue = isObject(raw.venue) ? raw.venue : {}
+  const id = raw.id ?? null
+  return {
+    id,
+    key: `event-${id ?? raw.source_url ?? text(raw.title)}`,
+    title: text(raw.title) || 'Eveniment fără titlu',
+    description: text(raw.description) || null,
+    startAt: text(raw.start_at),
+    endAt: text(raw.end_at) || null,
+    venueName: text(venue.name) || 'Locație neprecizată',
+    venueAddress: text(venue.address) || null,
+    // Free admission is never assumed: only an explicit is_free === true counts.
+    price: raw.is_free === true ? 'Gratuit' : text(raw.price_text) || 'Preț neprecizat',
+    sourceName: text(raw.source_name) || null,
+    sourceUrl: safeSourceUrl(raw.source_url),
+    imageUrl: safeImageUrl(raw.image_url),
+    imageUrlLarge: safeImageUrl(raw.image_url_large),
+  }
+}
+
+export function normalizeEventPage(payload) {
+  if (!isObject(payload) || !Array.isArray(payload.items)
+    || typeof payload.total !== 'number' || !Number.isFinite(payload.total)) {
+    throw invalidResponse()
+  }
+  return {
+    events: payload.items.map(normalizeEvent),
+    total: payload.total,
+    limit: Number.isFinite(payload.limit) ? payload.limit : null,
+    offset: Number.isFinite(payload.offset) ? payload.offset : null,
+  }
+}
+
+async function request(path, {
   baseUrl = import.meta.env?.VITE_API_URL ?? '',
   signal,
   timeoutMs = 15000,
   fetchImpl = globalThis.fetch,
+  notFoundCode,
 } = {}) {
   const base = baseUrl.trim().replace(/\/+$/, '')
   if (base && !/^https?:\/\//i.test(base) && !/^\/(?!\/)/.test(base)) {
@@ -54,23 +86,24 @@ export async function fetchEvents({
   const timeout = setTimeout(() => { timedOut = true; controller.abort() }, timeoutMs)
 
   try {
-    const response = await fetchImpl(`${base}/api/events`, {
+    const response = await fetchImpl(`${base}${path}`, {
       method: 'GET',
       headers: { Accept: 'application/json' },
       signal: controller.signal,
       cache: 'no-store',
     })
+    if (notFoundCode && response.status === 404) {
+      throw new EventsApiError('Evenimentul nu a fost găsit.', notFoundCode)
+    }
     if (!response.ok) {
       throw new EventsApiError(`Serviciul de evenimente a răspuns cu o eroare (HTTP ${response.status}).`, 'http')
     }
-    let payload
     try {
-      payload = await response.json()
+      return await response.json()
     } catch (error) {
       if (controller.signal.aborted) throw error
-      throw new EventsApiError('Serviciul de evenimente a trimis un răspuns care nu poate fi citit.', 'invalid-response')
+      throw invalidResponse('Serviciul de evenimente a trimis un răspuns care nu poate fi citit.')
     }
-    return normalizeEvents(payload)
   } catch (error) {
     if (signal?.aborted) throw error
     if (timedOut) throw new EventsApiError('Serviciul de evenimente răspunde prea greu. Încearcă din nou.', 'timeout')
@@ -80,4 +113,15 @@ export async function fetchEvents({
     clearTimeout(timeout)
     signal?.removeEventListener('abort', abort)
   }
+}
+
+export async function fetchEvents({ limit = DEFAULT_PAGE_SIZE, offset = 0, ...options } = {}) {
+  const query = new URLSearchParams({ limit: String(limit), offset: String(offset) })
+  const page = normalizeEventPage(await request(`/api/events?${query}`, options))
+  return { ...page, limit: page.limit ?? limit, offset: page.offset ?? offset }
+}
+
+export async function fetchEvent(id, options = {}) {
+  const payload = await request(`/api/events/${encodeURIComponent(id)}`, { ...options, notFoundCode: 'not-found' })
+  return normalizeEvent(payload)
 }

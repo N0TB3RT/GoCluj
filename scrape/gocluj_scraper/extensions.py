@@ -7,6 +7,8 @@ from scrapy import signals
 
 from gocluj_scraper.feeds import run_file
 
+EVENTS_PREFIX = "events/"
+
 
 class RunSummary:
     """Log a JSON summary line and write ``<spider>.summary.json`` for ``run.py``.
@@ -27,14 +29,17 @@ class RunSummary:
 
     def spider_closed(self, spider, reason):
         stats = self.crawler.stats
+        # Every events/<name> counter becomes a top-level "<name>" key; the core three default to 0.
+        counters = {"valid": 0, "invalid": 0, "past": 0}
+        for key, value in sorted(stats.get_stats().items()):
+            if key.startswith(EVENTS_PREFIX):
+                counters[key.removeprefix(EVENTS_PREFIX)] = value
         summary = {
             "event": "run_summary",
             "source": spider.name,
             "reason": reason,
             "items": stats.get_value("item_scraped_count", 0),
-            "valid": stats.get_value("events/valid", 0),
-            "invalid": stats.get_value("events/invalid", 0),
-            "past": stats.get_value("events/past", 0),
+            **counters,
             "errors": stats.get_value("log_count/ERROR", 0),
             "duration_s": round(time.monotonic() - self.started, 1),
         }

@@ -3,7 +3,7 @@
 > Owner: Data team. Covers DATA-01..05. Code lives in [`scrape/`](../../scrape/README.md).
 > Last updated: 2026-11-10.
 
-**Status.** Implemented: Scrapy framework and settings, `Event` model, parsing helpers, `BaseEventSpider`, runner (`run.py`), `RunSummary`, `ingest.py`, unit tests. To do: both spiders (`iabilet.py`, `livetickets.py`) are stubs; shared changes S1-S8 (§6) are not made yet; the backend ingest endpoint (`POST /api/ingest/events`, BE-02 / PRJ-01) does not exist, so ingest runs in dry-run mode (`INGEST_URL` unset).
+**Status.** Implemented: Scrapy framework and settings, `Event` model, parsing helpers, `BaseEventSpider`, runner (`run.py`), `RunSummary`, `ingest.py`, unit tests. LiveTickets spider (`livetickets.py`, T11; `image_url`, T12; one live run on 2026-11-10). To do: the iaBilet spider (`iabilet.py`) is a stub; of the shared changes (§6) S1-S4 and S6-S8 are done, S5 is open. Ingest is live against the backend `POST /api/ingest/events` (BE-02): with `INGEST_URL` and `INGEST_TOKEN` set it posts for real; dry-run only when `INGEST_URL` is unset.
 
 ## 1. Goals and constraints
 
@@ -45,11 +45,11 @@ cron (OPS-04) ─► docker compose run --rm scraper   (= python -m gocluj_scrap
                     │
                     └─ ingest: JSONL of successful spiders → POST /api/ingest/events
                                in batches, header X-Ingest-Token
-                               (INGEST_URL unset ⇒ dry-run, the case today)
+                               (INGEST_URL unset ⇒ dry-run)
                     exit code ≠ 0 if any spider or the ingest failed → alert (DATA-05 / OPS-04)
 ```
 
-No global `DEPTH_LIMIT` in the target design (S8).
+No global `DEPTH_LIMIT` (removed by S8).
 
 ### Responsibilities
 
@@ -73,7 +73,7 @@ No global `DEPTH_LIMIT` in the target design (S8).
 - `RETRY_TIMES = 3`, `DOWNLOAD_TIMEOUT = 30`
 - `CLOSESPIDER_TIMEOUT = 600` (10 min per spider), `CLOSESPIDER_ERRORCOUNT = 20`
 - HTTP cache in development only (`HTTPCACHE_ENABLED=1`)
-- `DEPTH_LIMIT = 10` exists today (`settings.py:21`) and is removed by S8
+- No `DEPTH_LIMIT` (removed by S8)
 
 ## 5. Event contract
 
@@ -83,62 +83,64 @@ No global `DEPTH_LIMIT` in the target design (S8).
 |---|---|---|---|---|
 | `source_name` | str | yes | `make_event` (spider's `source_name`) | – |
 | `source_url` | str | yes | spider | `canonical_url`: drop fragment and `utm_*`, `ica_*`, `fbclid`, `gclid`, `ref` |
-| `external_id` | str | **yes, non-empty** (S3; optional today) | spider | Stable per-source id; proposed upsert key `(source_name, external_id)` |
+| `external_id` | str | **yes, non-empty** (S3) | spider | Stable per-source id; proposed upsert key `(source_name, external_id)` |
 | `title` | str | yes | spider | `clean_text`; empty → invalid |
-| `description` | str \| None | no | spider | **S2:** `w3lib.html.remove_tags`, then `clean_text(..., multiline=True)`: `<br>` and `\r\n` → `\n`, space runs collapse, newlines kept. Today: single-line `clean_text`. |
+| `description` | str \| None | no | spider | **S2:** `<br>` and closing block tags (`</p>`, `</div>`, `</li>`, ...) → `\n`, `w3lib.html.remove_tags`, then `clean_text(..., multiline=True)`: `\r\n` → `\n`, space runs collapse, lines stripped, at most one blank line kept. |
 | `start_at` | datetime | yes | spider | ISO or Romanian text → aware Europe/Bucharest; naive values localized |
-| `end_at` | datetime \| None | no | spider | Same as `start_at`. **S1:** date-only `YYYY-MM-DD` → that day 23:59:59 local; `end_at <= start_at` → None |
+| `end_at` | datetime \| None | no | spider | Same as `start_at`. **S1:** date-only `YYYY-MM-DD` → that day 23:59:59 local; `end_at <= start_at` → None; end exactly 23:59:59 on start's local day → None (no real end time) |
 | `venue` | `{name, address, city, lat, lng}` | no | spider | Text fields `clean_text`; extra keys forbidden |
 | `price_text` | str \| None | no | spider, via `format_price` (S4) | `clean_text`; format "59 - 99 RON", single value when equal |
 | `is_free` | bool \| None | no | model | Derived by `detect_is_free(price_text)` when not set ("0 RON", "gratuit", "intrare liberă" → True) |
 | `categories` | list[str] | no | – | Empty until DATA-03 tagging |
-| `source_category` | str \| None | no | spider (S3, new) | Raw category hint for DATA-03; not a tag |
-| `image_url` | str \| None | no | spider | – |
+| `source_category` | str \| None | no | spider (S3) | Raw category hint for DATA-03; not a tag |
+| `image_url` | str \| None | no | spider | Card image (MEDIUM size for LiveTickets); absolute http(s) only |
+| `image_url_large` | str \| None | no | spider | Larger image for the detail page (LiveTickets ZOOM, at most 1920x960); absolute http(s) only; None for other sources |
 
-## 6. Shared changes (target, none implemented)
+## 6. Shared changes (all done)
 
-**Run-breaking** (fix before trusting any live numbers):
+**Run-breaking** (had to be fixed before trusting any live numbers):
 
-- **S1** - date-only `endDate` drops today's events: `parse_ro_datetime("2026-11-12")` gives 00:00, so the past check `(end_at or start_at) < now` (`spiders/base.py:48`) drops every event happening today.
-- **S8** - `DEPTH_LIMIT = 10` (`settings.py:21`): listing page N is depth N-1 and its detail pages depth N, so the events of listing pages past 10 are silently dropped.
+- **S1** (done) - date-only `endDate` dropped today's events: `parse_ro_datetime("2026-11-12")` gives 00:00, so the past check `(end_at or start_at) < now` (`spiders/base.py:54`) dropped every event happening today. The `end_at` validator now sets 23:59:59. Follow-up: when that lands on the start day (iaBilet single-day events: `endDate` = start date) `_finalize` sets `end_at = None` so the UI shows no invented "– 23:59"; such events fall back to `start_at` for the past check and disappear once started (accepted). Multi-day events keep 23:59:59 and stay listed until their last day. An explicit 23:59:59 end on the start day is also dropped (indistinguishable).
+- **S8** (done) - the old `DEPTH_LIMIT = 10`: listing page N is depth N-1 and its detail pages depth N, so the events of listing pages past 10 were silently dropped. Removed from `settings.py`.
 - **Pagination that never returns an empty page** (source-specific, iaBilet): pages past the end still return a promoted card, so "stop on empty page" never fires. See [iaBilet](sources/iabilet.md).
 
-| # | Change | File | Why / users | Task |
-|---|---|---|---|---|
-| S1 | Date-only end → 23:59:59 local; `end_at <= start_at` → None | `models.py` | **Bug:** today's events dropped as past | T2 |
-| S2 | Description cleaning: `remove_tags` + `clean_text(multiline=True)` | `models.py`, `parsing/text.py` | LiveTickets (HTML), iaBilet (`\r\n` plain text) | T3 |
-| S3 | `external_id` required non-empty; new `source_category` | `models.py` (+ `tests/test_models.py`, which builds `Event` without `external_id`) | Upsert key; DATA-03 hint | T4 |
-| S4 | `format_price(amounts, currency) -> str \| None`; `jsonld._price_text` / `_num` call it | `parsing/text.py`, `parsing/jsonld.py` | JSON-LD offers, iaBilet tariffs, LiveTickets min/max | T5 |
-| S5 | `_address`: don't append city when `streetAddress` already contains it | `parsing/jsonld.py` | iaBilet ("…, Cluj-Napoca" + locality "Cluj-Napoca") | T5 |
-| S6 | `skip(reason, url=None)`: inc `events/<reason>`, DEBUG log; `make_event` uses it for past; docstring: listing → detail is optional | `spiders/base.py` | Every spider's drops; LiveTickets is JSON list + detail | T6 |
-| S7 | `RunSummary` reports every `events/*` stat, not a hard-coded list | `extensions.py` | New counters/sources need no change there | T6 |
-| S8 | Remove global `DEPTH_LIMIT` | `settings.py` | **Bug:** truncation past page 10; crawl bounded by stop condition, `max_pages`, `CLOSESPIDER_TIMEOUT` | T6 |
+| # | Change | File | Why / users | Task | Status |
+|---|---|---|---|---|---|
+| S1 | Date-only end → 23:59:59 local; same-day 23:59:59 end → None; `end_at <= start_at` → None | `models.py` | **Bug:** today's events dropped as past | T2 | done |
+| S2 | Description cleaning: `remove_tags` + `clean_text(multiline=True)` | `models.py`, `parsing/text.py` | LiveTickets (HTML), iaBilet (`\r\n` plain text) | T3 | done |
+| S3 | `external_id` required non-empty; new `source_category` | `models.py`, `tests/test_models.py` | Upsert key; DATA-03 hint | T4 | done |
+| S4 | `format_price(amounts, currency) -> str \| None`; `jsonld._price_text` calls it | `parsing/text.py`, `parsing/jsonld.py` | JSON-LD offers, iaBilet tariffs, LiveTickets min/max | T5 | done |
+| S5 | `_address`: don't append city when `streetAddress` already contains it as whole words (accent/case-insensitive; e.g. "…, Cluj-Napoca 400535") | `parsing/jsonld.py` | iaBilet ("…, Cluj-Napoca" + locality "Cluj-Napoca") | T5 | done |
+| S6 | `skip(reason, url=None)`: inc `events/<reason>`, DEBUG log; `make_event` uses it for past; docstring: listing → detail is optional | `spiders/base.py` | Every spider's drops; LiveTickets is JSON list + detail | T6 | done |
+| S7 | `RunSummary` reports every `events/*` stat, not a hard-coded list | `extensions.py` | New counters/sources need no change there | T6 | done |
+| S8 | Remove global `DEPTH_LIMIT` | `settings.py` | **Bug:** truncation past page 10; crawl bounded by stop condition, `max_pages`, `CLOSESPIDER_TIMEOUT` | T6 | done |
 
 ## 7. Run health
 
 Counters (Scrapy stat keys):
 
-| Key | Meaning | Today |
+| Key | Meaning | Set by |
 |---|---|---|
-| `events/valid` | Emitted | exists |
-| `events/invalid` | Failed `Event` validation | exists |
-| `events/past` | Already ended | exists |
-| `events/cancelled` | Cancelled at source | new |
-| `events/not_cluj` | Outside Cluj | new |
-| `events/no_jsonld` | Detail page without Event JSON-LD | new |
-| `events/status_<value>` | Unexpected source status | new |
-| `events/time_slots` | Emitted, but source has time slots | new |
+| `events/valid` | Emitted | `make_event` |
+| `events/invalid` | Failed `Event` validation | `make_event` |
+| `events/past` | Already ended | `make_event` via `skip` |
+| `events/cancelled` | Cancelled at source | spider `skip` (iaBilet) |
+| `events/not_cluj` | Outside Cluj | spider `skip` (LiveTickets) |
+| `events/no_city` | Source gives no city, so Cluj cannot be checked | spider `skip` (LiveTickets) |
+| `events/no_jsonld` | Detail page without Event JSON-LD | spider `skip` (iaBilet) |
+| `events/status_<value>` | Unexpected source status | spider `skip` (LiveTickets) |
+| `events/time_slots` | Emitted, but source has time slots | spider (LiveTickets) |
 
-**Failed run** (`extensions.py:41`): `items == 0`, or close reason ≠ `finished` (e.g. `closespider_timeout`, `closespider_errorcount`), or any ERROR log line. `run.py` also fails a spider whose subprocess exits non-zero or writes no summary. Failed spiders' JSONL is not ingested.
+**Failed run** (`extensions.py:46`): `items == 0`, or close reason ≠ `finished` (e.g. `closespider_timeout`, `closespider_errorcount`), or any ERROR log line. `run.py` also fails a spider whose subprocess exits non-zero or writes no summary. Failed spiders' JSONL is not ingested.
 
-**RunSummary writes** one JSON log line and `$OUTPUT_DIR/<date>/<spider>.summary.json` with `event`, `source`, `reason`, `items`, `errors`, `duration_s`, `failed`, and the counters. Today the counters are fixed to `valid`/`invalid`/`past` (`extensions.py:35-37`); after S7 every `events/*` key is included.
+**RunSummary writes** one JSON log line and `$OUTPUT_DIR/<date>/<spider>.summary.json` with `event`, `source`, `reason`, `items`, `errors`, `duration_s`, `failed`, and the counters. Every `events/<name>` stat becomes a flat top-level key with the prefix removed (`valid`, `past`, `not_cluj`, ...); `valid`, `invalid` and `past` default to 0 (`extensions.py:33-36`).
 
 ## 8. Sources
 
 | Source | Summary | Spec |
 |---|---|---|
 | iaBilet (`iabilet`) | Server-rendered Cluj listing (~7 pages, ~155 events), Event JSON-LD on detail pages. Stop when `a.btn-more` is absent; take all tariffs from the detail page; skip cancelled. ~3-4 min per run. | [sources/iabilet.md](sources/iabilet.md) |
-| LiveTickets (`livetickets`) | Angular SPA; data from public JSON API (`api.livetickets.ro/public/events`, one list, no pagination) + per-event detail. Filter Cluj, then detail. **Blocked on INV-01** (terms check, T10). | [sources/livetickets.md](sources/livetickets.md) |
+| LiveTickets (`livetickets`) | Angular SPA; data from public JSON API (`api.livetickets.ro/public/events`, one list, no pagination) + per-event detail. Filter Cluj (city-less items skipped as `no_city`), then detail. Implemented; live run 2026-11-10: 31 events, 33 requests, ~1 min. | [sources/livetickets.md](sources/livetickets.md) |
 
 ## 9. Design principles applied
 
@@ -177,19 +179,19 @@ Adding source 3..6 costs one spider file (~60-120 lines), 2-3 fixtures and one t
 | # | Task | Difficulty | Files | Depends on |
 |---|---|---|---|---|
 | T1 | Doc fixes and this design | routine | docs | – |
-| T2 | Date-only end rule + `end_at <= start_at` rule, tests (S1) | moderate | `models.py`, `tests/test_models.py`, `tests/test_text.py` | – |
-| T3 | Description cleaning (S2), tests | routine | `parsing/text.py`, `models.py`, tests | – |
-| T4 | `external_id` required, `source_category` (S3); fix tests | routine | `models.py`, `tests/test_models.py` | – |
-| T5 | `format_price` (S4); `_address` city de-dup (S5); tests | routine | `parsing/text.py`, `parsing/jsonld.py`, tests | – |
-| T6 | `skip` (S6); `RunSummary` all `events/*` (S7); remove `DEPTH_LIMIT` (S8) | routine | `spiders/base.py`, `extensions.py`, `settings.py`, tests | – |
-| T7 | Save and trim iaBilet fixtures | routine | `tests/fixtures/iabilet/*` | – |
-| T8 | iaBilet listing: pagination, seen ids, cancelled skip | moderate | `spiders/iabilet.py`, `tests/test_iabilet.py` | T6, T7 |
-| T9 | iaBilet detail mapping (tariffs, title prefix, breadcrumb category) | moderate | `spiders/iabilet.py`, tests | T2-T5, T8 |
-| T10 | LiveTickets terms check (INV-01), recorded in IMPLEMENTATION_PLAN §9 | routine (owner) | `docs/IMPLEMENTATION_PLAN.md` | – |
-| T11 | LiveTickets fixtures + spider | moderate | `spiders/livetickets.py`, `tests/fixtures/livetickets/*`, `tests/test_livetickets.py` | T2-T6, T10 |
-| T12 | LiveTickets image URL template (browser network tab) | routine | `spiders/livetickets.py` | T11 |
-| T13 | Full live run via `run.py`; check summaries and timing; tune `custom_settings` | moderate | settings, spiders | T9, T11 |
-| T14 | Contract alignment once PRJ-01 / BE-02 land (schema test, ingest URL) | hard (cross-team) | `models.py`, `ingest.py`, tests | PRJ-01, BE-02 |
+| T2 | **Done.** Date-only end rule + `end_at <= start_at` rule, tests (S1) | moderate | `models.py`, `tests/test_models.py`, `tests/test_text.py` | – |
+| T3 | **Done.** Description cleaning (S2), tests | routine | `parsing/text.py`, `models.py`, tests | – |
+| T4 | **Done.** `external_id` required, `source_category` (S3); fix tests | routine | `models.py`, `tests/test_models.py` | – |
+| T5 | **Done.** `format_price` (S4), `_address` city de-dup (S5); tests | routine | `parsing/text.py`, `parsing/jsonld.py`, tests | – |
+| T6 | **Done.** `skip` (S6); `RunSummary` all `events/*` (S7); remove `DEPTH_LIMIT` (S8) | routine | `spiders/base.py`, `extensions.py`, `settings.py`, tests | – |
+| T7 | **Done.** Save and trim iaBilet fixtures | routine | `tests/fixtures/iabilet/*` | – |
+| T8 | **Done.** iaBilet listing: pagination, seen ids, cancelled skip | moderate | `spiders/iabilet.py`, `tests/test_iabilet.py` | T6, T7 |
+| T9 | **Done.** iaBilet detail mapping (tariffs, title prefix, breadcrumb category) | moderate | `spiders/iabilet.py`, tests | T2-T5, T8 |
+| T10 | **Done.** LiveTickets terms check (INV-01), recorded in IMPLEMENTATION_PLAN §9 | routine (owner) | `docs/IMPLEMENTATION_PLAN.md` | – |
+| T11 | **Done.** LiveTickets fixtures + spider | moderate | `spiders/livetickets.py`, `tests/fixtures/livetickets/*`, `tests/test_livetickets.py` | T2-T6, T10 |
+| T12 | **Done.** LiveTickets image URL template (R9 in the source spec) | routine | `spiders/livetickets.py`, `models.py` | T11 |
+| T13 | **Partly done:** full `run.py` run with ingest verified 2026-11-10 (31 LiveTickets events, re-ingest without duplicates); the iaBilet spider is now implemented (T7-T9). Remaining: iaBilet run, timing, tune `custom_settings` | moderate | settings, spiders | T9, T11 |
+| T14 | **Done (2026-11-10):** backend contract test ingests real scraper output | hard (cross-team) | `models.py`, `ingest.py`, tests | PRJ-01, BE-02 |
 
 ## 13. Open questions
 
@@ -197,8 +199,8 @@ Adding source 3..6 costs one spider file (~60-120 lines), 2-3 fixtures and one t
 
 | # | Question | Proposed default |
 |---|---|---|
-| O1 | Do LiveTickets terms allow API use? | Unknown; blocks T11 |
-| O2 | Do Cluj county events count? | Cluj-Napoca city only. Note: `is_cluj` is a substring test for "cluj" (`parsing/text.py:77`), so it also matches county places; a spider that must exclude them compares the city exactly (see [LiveTickets](sources/livetickets.md), R2). |
+| O1 | Do LiveTickets terms allow API use? | Answered 2026-11-10: yes, the public API is used (IMPLEMENTATION_PLAN §9) |
+| O2 | Do Cluj county events count? | Cluj-Napoca city only. Note: `is_cluj` is a substring test for "cluj" (`parsing/text.py:111`), so it also matches county places; a spider that must exclude them compares the city exactly (see [LiveTickets](sources/livetickets.md), R2). LiveTickets list items without a city are skipped (`no_city`), so Cluj and county events among them are lost (R1). |
 | O3 | Keep sold-out events? | Yes |
 | O4 | LiveTickets `price_max == 0`: free or unknown? | Unknown (`price_text` None) |
 | O5 | Rescheduled events: show the new date only? | Yes |
@@ -208,17 +210,17 @@ Adding source 3..6 costs one spider file (~60-120 lines), 2-3 fixtures and one t
 
 | # | Question | Proposed default |
 |---|---|---|
-| B1 | Upsert key | `(source_name, external_id)`; `source_url` alone breaks when one page lists several dates |
-| B2 | Contract fields | Accept `source_category` and multi-line descriptions |
+| B1 | Upsert key | `(source_name, external_id)`; `source_url` alone breaks when one page lists several dates **Answered:** implemented as proposed (unique key + upsert). |
+| B2 | Contract fields | Accept `source_category` and multi-line descriptions **Answered:** accepted; covered by the contract test (T14). |
 | B3 | Events that disappear or get cancelled after ingest | Expire when not seen in N runs |
 | B4 | Geocoding (DATA-04) | In the backend: needs a persistent venue cache and Nominatim at 1 req/s; the scraper is stateless. LiveTickets already supplies lat/lng. |
-| B5 | Auth header and max batch size | `X-Ingest-Token`, batches of 50 (`INGEST_BATCH_SIZE`) |
+| B5 | Auth header and max batch size | `X-Ingest-Token`, batches of 50 (`INGEST_BATCH_SIZE`) **Answered:** `X-Ingest-Token` required (401 without it); response `{received, created, updated}`. |
 
 **Cross-team items still open**
 
 | Item | With | Proposal |
 |---|---|---|
-| Ingest payload | BE-02, PRJ-01 | `POST /api/ingest/events`, body `{"events": [Event, …]}`, header `X-Ingest-Token`. Today only `POST /api/events` exists (single object, no auth, no upsert). |
-| Contract drift | Backend | After PRJ-01: commit the ingest JSON schema (`model_json_schema()`) and validate sample output against it in a scraper test (T14). |
+| Ingest payload | BE-02, PRJ-01 | `POST /api/ingest/events`, body `{"events": [Event, …]}`, header `X-Ingest-Token`. **Done (2026-11-10):** implemented; open `POST /api/events` removed. |
+| Contract drift | Backend | **Covered:** backend contract test with real scraper output (T14). Optional: also commit the JSON schema (`model_json_schema()`) for a scraper-side check. |
 | Tagging (DATA-03) | – | Pure function called from `make_event`, keyword lists in a config file; `source_category` as an input hint. |
 | Scheduling and alerts | DevOps (OPS-04) | Daily cron runs `docker compose run --rm scraper`; non-zero exit → alert. Per-source health from `*.summary.json` (input for BE-10 source health). |

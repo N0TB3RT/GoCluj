@@ -1,8 +1,10 @@
 """Pure text helpers: cleaning, URLs, price/free detection, Romanian dates."""
 
 import html
+import math
 import re
 import unicodedata
+from collections.abc import Iterable
 from datetime import date, datetime, timedelta
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from zoneinfo import ZoneInfo
@@ -30,12 +32,19 @@ _DAY_MONTH_RE = re.compile(r"\b(\d{1,2})\s+([a-z]+)\.?(?:,?\s+(\d{4}))?")
 _PRICE_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(?:lei|ron|eur|€)|(?:€|eur)\s*(\d+(?:[.,]\d+)?)")
 
 
-def clean_text(value: str | None) -> str | None:
-    """Unescape HTML entities, collapse whitespace; empty becomes None."""
+def clean_text(value: str | None, multiline: bool = False) -> str | None:
+    """Unescape HTML entities, collapse whitespace; empty becomes None.
+
+    With ``multiline=True`` line breaks are kept (max one blank line) and each line is stripped.
+    """
     if value is None:
         return None
-    text = " ".join(html.unescape(str(value)).split())
-    return text or None
+    unescaped = html.unescape(str(value))
+    if not multiline:
+        return " ".join(unescaped.split()) or None
+    unescaped = unescaped.replace("\r\n", "\n").replace("\r", "\n")
+    lines = [re.sub(r"[^\S\n]+", " ", line).strip() for line in unescaped.split("\n")]
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip() or None
 
 
 def strip_accents(text: str) -> str:
@@ -72,6 +81,31 @@ def detect_is_free(price_text: str | None) -> bool | None:
     if not amounts:
         return None
     return all(a == 0 for a in amounts)
+
+
+def _amount(value) -> float | None:
+    if isinstance(value, str):
+        value = value.strip().replace(",", ".")
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _format_number(number: float) -> str:
+    return str(int(number)) if number == int(number) else f"{number:g}"
+
+
+def format_price(amounts: Iterable, currency: str | None = None) -> str | None:
+    """Format amounts as 'min - max CUR' (or 'x CUR' when all equal); None if no usable amount."""
+    values = [a for a in map(_amount, amounts) if a is not None and math.isfinite(a)]
+    if not values:
+        return None
+    low, high = min(values), max(values)
+    text = _format_number(low)
+    if high != low:
+        text = f"{text} - {_format_number(high)}"
+    return f"{text} {currency}" if currency else text
 
 
 def is_cluj(text: str | None) -> bool:
