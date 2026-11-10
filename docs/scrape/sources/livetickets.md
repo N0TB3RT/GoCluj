@@ -56,7 +56,7 @@ start_requests ──► GET /public/events  (311 items)
    - `d["has_time_slots"]` true: increment `events/time_slots`, log WARNING, still emit using the list `start_date` / `end_date`.
    - Build fields (section 4) and `yield` the result of `self.make_event(**fields)` when not `None`.
 
-Helpers reused: `is_cluj` (`parsing/text.py:77`), `make_event` (`spiders/base.py:33`), `localize` (called by the model's date validators for naive datetimes, `parsing/text.py:82`). To be added by the shared tasks: `skip` (S6, T6), `format_price` (S4, T5), HTML description cleaning (S2, T3), required `external_id` and `source_category` (S3, T4), end-date rules (S1, T2). Do not duplicate them in the spider.
+Helpers reused: `is_cluj` (`parsing/text.py:111`), `make_event` (`spiders/base.py:39`), `skip` (`spiders/base.py:34`, S6), `format_price` (`parsing/text.py:99`, S4), `localize` (called by the model's date validators for naive datetimes, `parsing/text.py:116`). Already done in the `Event` model: HTML description cleaning to multi-line text (`models.py:101`, S2), required non-empty `external_id` (`models.py:89`) and `source_category` (S3), end-date rules (`models.py:114`, `models.py:122`, S1). Do not duplicate them in the spider.
 
 ### What `is_cluj` actually matches
 
@@ -165,7 +165,7 @@ Fixtures in `scrape/tests/fixtures/livetickets/` (loaded with `fake_response(url
 - `events.json`: about 4 trimmed list items: Cluj-Napoca, Bucharest, empty-city "MATTER", one with price 0/0. Trim `description`.
 - `event_detail.json`: one detail response. **Remove `company` entirely** before committing; check with a grep that no key or secret-looking string remains.
 
-Tests in `scrape/tests/test_livetickets.py`:
+Tests in `scrape/tests/test_livetickets.py` (build the spider with `make_spider(spider_cls, settings=None, **kwargs)` from `tests/conftest.py`; it attaches in-memory stats, so `events/*` counters can be asserted):
 
 - `parse`: Cluj and empty-city items yield detail requests, Bucharest does not (`events/not_cluj`).
 - `parse_event`: field mapping (external_id UUID, source_url, venue with lat/lng, `price_text` like "50 - 120 RON", naive dates localized).

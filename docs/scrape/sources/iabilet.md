@@ -49,7 +49,7 @@ parse(page=N) ── for each card ──► id seen? ──yes──► (ignore
 3. `fields = jsonld_to_fields(data)` (existing), then apply the overrides in section 4.
 4. `item = self.make_event(**fields)`; yield it when not `None`.
 
-Shared helpers to add (not iaBilet-specific, see the design doc): `skip` (S6, T6) and `format_price` (S4, T5). Existing and reused as is: `canonical_url`, `extract_jsonld_events`, `jsonld_to_fields`, `make_event`, `next_page`.
+Shared helpers (not iaBilet-specific, see the design doc): `skip` (S6) and `format_price` (S4) are done. Of the shared changes only S5 (`_address` city de-dup) is still open. Existing and reused as is: `canonical_url`, `extract_jsonld_events`, `jsonld_to_fields`, `make_event`, `next_page`.
 
 ## 3. Selectors
 
@@ -78,7 +78,7 @@ The breadcrumb is a second JSON-LD block (`BreadcrumbList`) and is not returned 
 | `start_at` | JSON-LD `startDate` | ISO with offset, e.g. `2026-11-12T19:30:00+02:00`. |
 | `end_at` | JSON-LD `endDate` | Date only (`2026-11-13`). S1 turns it into 23:59:59 that day; `end_at <= start_at` becomes `None`. |
 | `venue.name` | `location.name` | |
-| `venue.address` | `location.address.streetAddress` | City not appended when already contained (S5). |
+| `venue.address` | `location.address.streetAddress` | City not appended when already contained (S5, still open). |
 | `venue.city` | `location.address.addressLocality` | |
 | `venue.lat/lng` | – | Not available; the backend geocodes. |
 | `price_text` | all `data-tariff-sell-price` values | `format_price(values, "RON")`, e.g. `21.21 - 31.82 RON`. Fallback: the JSON-LD offer. `None` when neither exists. The JSON-LD offer holds a single tariff (the highest in both cases checked), so it is not used first. |
@@ -101,9 +101,9 @@ The breadcrumb is a second JSON-LD block (`BreadcrumbList`) and is not returned 
 | Multi-day | One event: `startDate` day 1, `endDate` last day (date only), card class `event-multi-day` | One Event with `end_at` = last day 23:59:59 (S1). |
 | Multiple performances | Every case seen has one id per performance. **Unverified** that this always holds. | Treated as separate events by id. |
 | Title prefix | `Cluj-Napoca: Andra...`, sometimes `SOLD-OUT ÎN 15 ORE! Cluj-Napoca: Andra...` | Strip as in section 4. |
-| Address city duplication | `streetAddress` "Strada Brassai Sámuel 12, Cluj-Napoca" plus locality "Cluj-Napoca" | S5 prevents "..., Cluj-Napoca, Cluj-Napoca". |
+| Address city duplication | `streetAddress` "Strada Brassai Sámuel 12, Cluj-Napoca" plus locality "Cluj-Napoca" | S5 (still open) prevents "..., Cluj-Napoca, Cluj-Napoca". |
 | Non-card links | Gift voucher `/bilete-voucher-cadou-iabilet-87881/` appears outside cards | Only links inside cards are followed. |
-| Event today | `endDate` is the date of today (for example 132993: 2026-11-10) | Without S1 it becomes 00:00 and `make_event` drops it as past. S1 (T2) is required. |
+| Event today | `endDate` is the date of today (for example 132993: 2026-11-10) | Without S1 it would become 00:00 and `make_event` would drop it as past. S1 (T2) is done. |
 
 ## 6. Pagination and stop condition
 
@@ -111,7 +111,7 @@ The breadcrumb is a second JSON-LD block (`BreadcrumbList`) and is not returned 
 - Pages past the end are not empty. Page 8 and page 16 each still return one card: the promoted event 132560, which is also shown on every real page. So "stop when a page has no cards" never fires, and following `?page=N+1` blindly would crawl forever.
 - Real pages carry `<a href="/bilete-in-cluj-napoca?page=N+1" class="btn btn-more">`. The last real page (7) has none. **Stop when `a.btn-more` is absent.** Follow its `href`, do not construct URLs.
 - `max_pages` (spider argument) is the second bound; `CLOSESPIDER_TIMEOUT` is the third.
-- Why the global `DEPTH_LIMIT = 10` must go (S8, T6): listing page N is at depth N-1 and its detail pages at depth N, so detail pages of listing pages past 10 are dropped silently. At today's 7 pages this is fine; beyond 10 pages the crawl would be truncated with no error. Without it, a runaway crawl is still bounded by `btn-more`, `max_pages` and the timeout.
+- Why the global `DEPTH_LIMIT = 10` was removed (S8, T6, done): listing page N is at depth N-1 and its detail pages at depth N, so detail pages of listing pages past 10 were dropped silently; beyond 10 pages the crawl would have been truncated with no error. Without it, a runaway crawl is still bounded by `btn-more`, `max_pages` and the timeout.
 
 ## 7. Settings and budget
 
