@@ -1,0 +1,148 @@
+[
+  {
+    "url": "balul-dintilor-de-lapte-1",
+    "event_id": "76fca833-4112-45d5-933f-e4aaa11480a5",
+    "organizer_id": 3080,
+    "name": "Balul “Dinților de Lapte”",
+    "price_min": 30.0,
+    "price_max": 35.0,
+    "location": "MATTER",
+    "start_date": "2026-11-12T21:00:00",
+    "end_date": "2026-11-13T05:00:00",
+    "city": "Cluj-Napoca",
+    "country": "România",
+    "currency": {
+      "id": 1,
+      "code": "RON",
+      "name": "LEU",
+      "symbol": "lei"
+    },
+    "description": "",
+    "images": [
+      {
+        "name": "Background",
+        "path": "balul-dintilor-de-lapte-1/Background_MEDIUM.jpg",
+        "width": 800,
+        "height": 450,
+        "size": "MEDIUM"
+      }
+    ],
+    "organizer_followers": 0
+  },
+  {
+    "url": "most-wanted-1211",
+    "event_id": "a6a5798a-2d7d-4935-8229-e8b1135d81f1",
+    "organizer_id": 1778,
+    "name": "MOST WANTED | 12.11",
+    "price_min": 0.0,
+    "price_max": 0.0,
+    "location": "Interbelic",
+    "start_date": "2026-11-12T20:00:00",
+    "end_date": "2026-11-13T02:00:00",
+    "city": "București",
+    "country": "Romania",
+    "currency": {
+      "id": 1,
+      "code": "RON",
+      "name": "LEU",
+      "symbol": "lei"
+    },
+    "description": "<strong>THE MOST WANTED SONGS.&nbsp;</strong>You&#39;ve heard them, they are all around, you know the lyrics, you know the names, you know who&#39;s singing, it&#39;s the music that follows you all around. This is gonna be a night with the MOST WANTED playlist. 🧚🏻&zwj;♀️",
+    "images": [
+      {
+        "name": "Background",
+        "path": "most-wanted-1211/Background_MEDIUM.jpg",
+        "width": 800,
+        "height": 450,
+        "size": "MEDIUM"
+      }
+    ],
+    "organizer_followers": 0
+  },
+  {
+    "url": "balul-bobociilor-chimisti-netflix-and-chill",
+    "event_id": "e807fe87-a0e7-45f0-93e7-dd8a8f2eb2a9",
+    "organizer_id": 3077,
+    "name": "Balul Bobociilor Chimiști: Netflix and chill 📽🎞",
+    "price_min": 25.0,
+    "price_max": 25.0,
+    "location": "MATTER ",
+    "start_date": "2026-11-25T19:00:00",
+    "end_date": "2026-11-26T09:00:00",
+    "currency": {
+      "id": 1,
+      "code": "RON",
+      "name": "LEU",
+      "symbol": "lei"
+    },
+    "description": "",
+    "images": [
+      {
+        "name": "Background",
+        "path": "balul-bobociilor-chimisti-netflix-and-chill/Background_MEDIUM.jpg",
+        "width": 800,
+        "height": 450,
+        "size": "MEDIUM"
+      }
+    ],
+    "organizer_followers": 0
+  },
+  {
+    "url": "mox-2027",
+    "event_id": "66a5160d-97c0-4a1e-8573-34b08aac1928",
+    "organizer_id": 3872,
+    "name": "MOX 2027",
+    "price_min": 125.0,
+    "price_max": 375.0,
+    "location": "Coada Lacului Floroiu (Drăgan), Valea Drăganului, Cluj",
+    "start_date": "2027-07-01T14:00:00",
+    "end_date": "2027-07-05T14:00:00",
+    "currency": {
+      "id": 1,
+      "code": "RON",
+      "name": "LEU",
+      "symbol": "lei"
+    },
+    "description": "THE MUSIC - THE OUTDOORS - THE EXPERIENCE<br />\n<br />\nO aventură cu 2000 de prieteni &icirc;n v&acirc;rf de munte.<br />\nAceeași energie, același spirit montan, aceeași dragoste pentru natură, socializare, muzică și oameni minunați.<br />\nNe revedem &icirc;ntre 1-4 iulie 2027,",
+    "images": [
+      {
+        "name": "Background",
+        "path": "mox-2027/Background_MEDIUM.jpg",
+        "width": 800,
+        "height": 450,
+        "size": "MEDIUM"
+      }
+    ],
+    "organizer_followers": 0
+  },
+  {
+    "url": "galant-featuring-tzanca-uraganu-the-king-is-back-party",
+    "event_id": "76816f50-e4de-41d0-b2bf-db250efb6f7d",
+    "organizer_id": 3056,
+    "name": "GALANT featuring TZANCA URAGANU - THE KING IS BACK PARTY 👑",
+    "price_min": 59.99,
+    "price_max": 349.99,
+    "location": "Cluj-Napoca",
+    "start_date": "2026-11-13T20:00:00",
+    "end_date": "2026-11-14T05:00:00",
+    "city": "Cluj-Napoca",
+    "country": "Romania",
+    "currency": {
+      "id": 1,
+      "code": "RON",
+      "name": "LEU",
+      "symbol": "lei"
+    },
+    "description": "<meta charset=\"UTF-8\" />\n<p><strong>THE KING IS BACK 👑<br />\n<br />\nCEL MAI VOTAT ARTIST DE COMUNITATEA GALANT SE INTOARCE LA CLUJ PE 13 NOIEMBRIE LA THE LEGEND CLUB.<br />\n<br />\nCUM E SA ITI PACALESTI INIMA? E PRIN A NU VENI LA PARTY. STIM CU TOTII CA VREI. SI NOI VREM.",
+    "images": [
+      {
+        "name": "Background",
+        "path": "galant-featuring-tzanca-uraganu-the-king-is-back-party/Background_MEDIUM.jpg",
+        "width": 800,
+        "height": 450,
+        "size": "MEDIUM"
+      }
+    ],
+    "organizer_followers": 0
+  }
+]

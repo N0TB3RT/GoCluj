@@ -1,0 +1,71 @@
+{
+  "id": "76fca833-4112-45d5-933f-e4aaa11480a5",
+  "name": "Balul “Dinților de Lapte”",
+  "start_date": "2026-11-12T21:00:00",
+  "end_date": "2026-11-13T05:00:00",
+  "ticket_count": 0,
+  "remaining_count": 0,
+  "seating": false,
+  "description": "",
+  "currency": {
+    "id": 1,
+    "code": "RON",
+    "name": "LEU",
+    "symbol": "lei"
+  },
+  "created": "2026-11-03T16:43:29.44",
+  "url": "balul-dintilor-de-lapte-1",
+  "price_max": 40.0,
+  "location": {
+    "name": "MATTER",
+    "address": "Str. Universității 3",
+    "city": "Cluj-Napoca",
+    "zip": "400347",
+    "country": "România",
+    "lat": 46.7680736,
+    "lng": 23.5902744
+  },
+  "item_tags": [
+    {
+      "id": "342e7079-deef-47ad-b3ef-87cc4a47712c",
+      "url": "wwwliveticketsro",
+      "name": "www.livetickets.ro",
+      "type": "Website"
+    },
+    {
+      "id": "59454a8b-b997-4d94-a227-7f86164f5c95",
+      "url": "divertisment",
+      "name": "divertisment",
+      "type": "Category"
+    },
+    {
+      "id": "1ffc97c9-42ae-4545-8434-8f1af3b445c5",
+      "url": "organizatia-studentilor-stomatologi",
+      "name": "Organizația Studenților Stomatologi",
+      "type": "Promoter"
+    },
+    {
+      "id": "09c80257-acd2-42a2-a831-95d7405db089",
+      "url": "cluj-napoca",
+      "name": "Cluj-Napoca",
+      "type": "City"
+    }
+  ],
+  "allow_refunds": false,
+  "images": [
+    {
+      "name": "Background",
+      "path": "balul-dintilor-de-lapte-1/Background_MEDIUM.jpg",
+      "width": 800,
+      "height": 450,
+      "size": "MEDIUM"
+    }
+  ],
+  "status": "online",
+  "organizer": {
+    "name": "Organizația Studenților Stomatologi",
+    "url": "organizatia-studentilor-stomatologi"
+  },
+  "has_time_slots": false,
+  "time_slots": []
+}
