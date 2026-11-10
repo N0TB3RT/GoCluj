@@ -113,6 +113,17 @@ test('formats date ranges on one day and across days', () => {
   assert.equal(formatEventDateRange('', '2026-11-12T20:00:00+02:00'), null)
 })
 
+test('formats 00:00 to 23:59 ranges as whole days', () => {
+  assert.equal(formatEventDateRange('2026-01-28T00:00:00+02:00', '2027-11-30T23:59:59+02:00'), '28 ianuarie 2026 – 30 noiembrie 2027')
+  assert.equal(formatEventDateRange('2026-11-12T00:00:00+02:00', '2026-11-12T23:59:00+02:00'), '12 noiembrie 2026')
+  assert.equal(
+    formatEventDateRange('2026-11-12T23:00:00+02:00', '2026-11-13T05:00:00+02:00'),
+    '12 noiembrie 2026 la 23:00 – 13 noiembrie 2026 la 05:00',
+  )
+  assert.equal(formatEventDateRange('2026-11-12T00:00:00+02:00', null), formatEventDate('2026-11-12T00:00:00+02:00'))
+  assert.match(formatEventDateRange('2026-11-12T00:00:00+02:00', null), /00:00/)
+})
+
 test('rejects malformed pages instead of pretending there are no events', async () => {
   for (const payload of [[], { detail: 'error' }, null, { items: 'x', total: 1 }, { items: [] }, { items: [null], total: 1 }, { items: ['event'], total: 1 }]) {
     await assert.rejects(fetchEvents({ fetchImpl: async () => response(payload) }), { code: 'invalid-response' })

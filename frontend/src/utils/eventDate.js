@@ -13,6 +13,7 @@ function parseEventDate(value) {
 const format = ({ date, timeZone }, options) => new Intl.DateTimeFormat('ro-RO', { timeZone, ...options }).format(date)
 const formatDay = (parsed) => format(parsed, { day: 'numeric', month: 'long', year: 'numeric' })
 const formatTime = (parsed) => format(parsed, { hour: '2-digit', minute: '2-digit' })
+const formatClock = (parsed) => format(parsed, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
 
 export function formatEventDate(value) {
   const parsed = parseEventDate(value)
@@ -30,7 +31,9 @@ export function formatEventDateRange(start, end) {
   if (!to || to.date <= from.date) return formatEventDate(start)
   const fromDay = formatDay(from)
   const toDay = formatDay(to)
-  if (!from.hasTime || !to.hasTime) return fromDay === toDay ? fromDay : `${fromDay} – ${toDay}`
+  // A 00:00 start with a 23:59 end is how date-only sources (museums, exhibitions) encode whole days.
+  const allDay = formatClock(from) === '00:00' && formatClock(to) === '23:59'
+  if (!from.hasTime || !to.hasTime || allDay) return fromDay === toDay ? fromDay : `${fromDay} – ${toDay}`
   if (fromDay === toDay) return `${fromDay}, ${formatTime(from)} – ${formatTime(to)}`
   return `${fromDay} la ${formatTime(from)} – ${toDay} la ${formatTime(to)}`
 }
