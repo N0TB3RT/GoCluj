@@ -1,8 +1,8 @@
 # GoCluj – Implementation Plan
 
-> Living document. Last updated: 2026-11-09.
+> Living document. Last updated: 2026-11-10.
 > Ship target: **mid-January 2027** (about 10 weeks from now).
-> Detailed per-team docs (`docs/devops/`, `docs/data/`, `docs/backend/`, `docs/frontend/`) will be added as features get built.
+> Detailed per-team docs (`docs/devops/`, `docs/scrape/`, `docs/backend/`, `docs/frontend/`) will be added as features get built.
 
 **Guiding principle: keep it simple.** Pick the boring, proven option. Timebox investigations. Build the core first, then social, then AI. Anything not required for launch goes to [After launch](#8-after-launch-backlog).
 
@@ -59,7 +59,7 @@ By **mid-January 2027**, GoCluj is live on a public HTTPS URL.
 | Infra | `docker-compose.yml` with Postgres 15, pgAdmin, backend, frontend, scraper |
 | Backend | FastAPI app with one `POST /api/events` endpoint, SQLAlchemy models (`users`, `categories`, `events`, `favorites`) |
 | Database | Raw SQL schema in `data/schema1.sql` (loaded on first DB start) |
-| Data | `scraper/scraper.py` posts one hard-coded test event to the backend |
+| Data | Scrapy foundation in `scrape/` with two stub spiders (iaBilet, LiveTickets) |
 | Frontend | Default Vite + React 19 template |
 
 Known gaps (fixed by the Epics below):
@@ -106,7 +106,7 @@ Everything runs as docker compose services on one host, with no queues. Social u
 
 | Layer | Choice |
 |---|---|
-| Scraping | Scrapy (one spider per source, JSONL output + separate ingest step). `scrapy-playwright` only for sources that need JavaScript. See [`docs/data/scraper-design.md`](data/scraper-design.md) |
+| Scraping | Scrapy (one spider per source, JSONL output + separate ingest step). `scrapy-playwright` only for sources that need JavaScript. See [`docs/scrape/scraper-design.md`](scrape/scraper-design.md) |
 | Backend | FastAPI, SQLAlchemy, Alembic, Pydantic v2, pytest |
 | Database | PostgreSQL 15 (with `unaccent` for search) |
 | Frontend | React + Vite, React Router, TanStack Query, Tailwind CSS, Leaflet (OpenStreetMap tiles) |
@@ -248,7 +248,7 @@ Everything runs as docker compose services on one host, with no queues. Social u
 **DATA-02 Normalization & dedup** · S2 · Must
 - Dates in the Europe/Bucharest timezone, Romanian date formats, and "Gratuit" / "Intrare liberă" setting `is_free`.
 - Clean the text.
-- Upsert by `source_url`, plus a basic cross-source dedup (title + date + venue).
+- Upsert by `(source_name, external_id)` (proposed, pending Backend review; see the [scraper design](scrape/scraper-design.md)), plus a basic cross-source dedup (title + date + venue).
 - **DoD:** re-runs create no duplicates, and the same event from 2 sources appears once.
 
 **DATA-03 Auto-tagging** · S2 · Must
@@ -533,10 +533,11 @@ Short notes from investigations and any change to the default stack. Use the for
 - _2026-11-09 · Plan · Initial plan created; 2-week sprints; social (Should) and AI (Could) added to scope._
 - _2026-11-09 · Scope · Notifications (email + push), admin panel, PWA and Google sign-in added as Should; real-time chat and i18n added as Could._
 - _2026-11-09 · Schedule · Added S0 (Foundations, 3 days, until Wednesday). Sprints are described by duration, not by dates._
-- _2026-11-09 · Scraping stack · Scrapy instead of requests + BeautifulSoup · built-in throttling, retries, robots.txt, HTTP cache, feed export and per-run stats that we would otherwise write ourselves. Details in `docs/data/scraper-design.md`._
+- _2026-11-09 · Scraping stack · Scrapy instead of requests + BeautifulSoup · built-in throttling, retries, robots.txt, HTTP cache, feed export and per-run stats that we would otherwise write ourselves. Details in `docs/scrape/scraper-design.md`._
 - _2026-11-09 · Scraper orchestration · cron + `docker compose run --rm scraper`, no Airflow · one daily batch on one VPS; Airflow's extra infra isn't justified._
 - _2026-11-09 · Scraper delivery · two steps: crawl → JSONL → `ingest` command; one process per spider · a backend outage doesn't fail the crawl, re-runs and debugging are easy, and failures stay per source._
-- _2026-11-09 · Proposals (pending Backend review) · upsert key `(source_name, external_id)`; geocoding moves to the backend (needs a persistent venue cache) · see `docs/data/scraper-design.md` §6._
+- _2026-11-09 · Proposals (pending Backend review) · upsert key `(source_name, external_id)`; geocoding moves to the backend (needs a persistent venue cache) · see `docs/scrape/scraper-design.md` §6._
+- _2026-11-10 · Scraper sources · scraper design detailed for iaBilet and LiveTickets; per-source specs in `docs/scrape/sources/`; LiveTickets blocked on the INV-01 terms check._
 - _INV-01 · Event sources · pending. First sources: iaBilet (server-rendered, JSON-LD) and LiveTickets (SPA; check the ToS of its internal JSON API vs. Playwright)._
 - _INV-02 · Hosting · pending_
 - _INV-03 · AI approach & provider · pending_
