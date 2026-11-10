@@ -1,6 +1,11 @@
 import json
 
-from gocluj_scraper.parsing.jsonld import extract_jsonld_events, jsonld_to_fields
+from gocluj_scraper.parsing.jsonld import (
+    breadcrumb_name,
+    extract_jsonld_events,
+    extract_jsonld_nodes,
+    jsonld_to_fields,
+)
 from tests.conftest import fake_response
 
 MUSIC_EVENT = {
@@ -80,3 +85,69 @@ def test_jsonld_to_fields_free_offer_and_image_object():
         }
     )
     assert fields == {"title": "X", "image_url": "https://i/x.png", "price_text": "0 RON"}
+
+
+def test_extract_jsonld_nodes_shapes():
+    graph = {"@graph": [{"@type": "WebSite"}, {"@type": "BreadcrumbList", "id": 1}]}
+    listing = [{"@type": ["Thing", "BreadcrumbList"], "id": 2}, {"@type": "Organization"}]
+    resp = fake_response(
+        "https://x.ro/",
+        _page(
+            "{not json",
+            json.dumps({"@type": "BreadcrumbList", "id": 0}),
+            json.dumps(graph),
+            json.dumps(listing),
+        ),
+    )
+    nodes = extract_jsonld_nodes(resp, "BreadcrumbList")
+    assert [n["id"] for n in nodes] == [0, 1, 2]
+    assert extract_jsonld_nodes(resp, "Missing") == []
+
+
+def _breadcrumb(*names: str) -> dict:
+    return {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {"@type": "ListItem", "position": i + 1, "name": n} for i, n in enumerate(names)
+        ],
+    }
+
+
+def test_breadcrumb_name_found_skipping_short_lists():
+    resp = fake_response(
+        "https://x.ro/",
+        _page(json.dumps(_breadcrumb("Home")), json.dumps(_breadcrumb("A", "B", "Concerte"))),
+    )
+    assert breadcrumb_name(resp, 2) == "Concerte"
+
+
+def test_breadcrumb_name_out_of_range_or_missing():
+    short = fake_response("https://x.ro/", _page(json.dumps(_breadcrumb("A", "B"))))
+    assert breadcrumb_name(short, 2) is None
+    none = fake_response("https://x.ro/", _page(json.dumps(MUSIC_EVENT)))
+    assert breadcrumb_name(none, 2) is None
+
+
+def test_address_does_not_duplicate_city():
+    def venue(street):
+        return jsonld_to_fields(
+            {
+                "name": "X",
+                "location": {
+                    "name": "V",
+                    "address": {"streetAddress": street, "addressLocality": "Cluj-Napoca"},
+                },
+            }
+        )["venue"]
+
+    streets = (
+        "Strada X 12, Cluj-Napoca",
+        " Strada X 12, cluj-napoca, ",
+        "Strada X 12, Cluj-Napoca,",
+    )
+    for street in streets:
+        v = venue(street)
+        assert v["address"] == street
+        assert v["city"] == "Cluj-Napoca"
+    assert venue("Strada X 12")["address"] == "Strada X 12, Cluj-Napoca"
+    assert venue("Strada Țării 1, Cluj-Napoca")["address"] == "Strada Țării 1, Cluj-Napoca"

@@ -96,7 +96,7 @@ No global `DEPTH_LIMIT` (removed by S8).
 | `image_url` | str \| None | no | spider | Card image (MEDIUM size for LiveTickets); absolute http(s) only |
 | `image_url_large` | str \| None | no | spider | Larger image for the detail page (LiveTickets ZOOM, at most 1920x960); absolute http(s) only; None for other sources |
 
-## 6. Shared changes (S5 open, the rest done)
+## 6. Shared changes (all done)
 
 **Run-breaking** (had to be fixed before trusting any live numbers):
 
@@ -110,7 +110,7 @@ No global `DEPTH_LIMIT` (removed by S8).
 | S2 | Description cleaning: `remove_tags` + `clean_text(multiline=True)` | `models.py`, `parsing/text.py` | LiveTickets (HTML), iaBilet (`\r\n` plain text) | T3 | done |
 | S3 | `external_id` required non-empty; new `source_category` | `models.py`, `tests/test_models.py` | Upsert key; DATA-03 hint | T4 | done |
 | S4 | `format_price(amounts, currency) -> str \| None`; `jsonld._price_text` calls it | `parsing/text.py`, `parsing/jsonld.py` | JSON-LD offers, iaBilet tariffs, LiveTickets min/max | T5 | done |
-| S5 | `_address`: don't append city when `streetAddress` already contains it | `parsing/jsonld.py` | iaBilet ("…, Cluj-Napoca" + locality "Cluj-Napoca") | T5 | open |
+| S5 | `_address`: don't append city when `streetAddress` already ends with it (accent/case-insensitive) | `parsing/jsonld.py` | iaBilet ("…, Cluj-Napoca" + locality "Cluj-Napoca") | T5 | done |
 | S6 | `skip(reason, url=None)`: inc `events/<reason>`, DEBUG log; `make_event` uses it for past; docstring: listing → detail is optional | `spiders/base.py` | Every spider's drops; LiveTickets is JSON list + detail | T6 | done |
 | S7 | `RunSummary` reports every `events/*` stat, not a hard-coded list | `extensions.py` | New counters/sources need no change there | T6 | done |
 | S8 | Remove global `DEPTH_LIMIT` | `settings.py` | **Bug:** truncation past page 10; crawl bounded by stop condition, `max_pages`, `CLOSESPIDER_TIMEOUT` | T6 | done |
@@ -182,7 +182,7 @@ Adding source 3..6 costs one spider file (~60-120 lines), 2-3 fixtures and one t
 | T2 | **Done.** Date-only end rule + `end_at <= start_at` rule, tests (S1) | moderate | `models.py`, `tests/test_models.py`, `tests/test_text.py` | – |
 | T3 | **Done.** Description cleaning (S2), tests | routine | `parsing/text.py`, `models.py`, tests | – |
 | T4 | **Done.** `external_id` required, `source_category` (S3); fix tests | routine | `models.py`, `tests/test_models.py` | – |
-| T5 | **Partly done:** `format_price` (S4) done; `_address` city de-dup (S5) open; tests | routine | `parsing/text.py`, `parsing/jsonld.py`, tests | – |
+| T5 | **Done.** `format_price` (S4), `_address` city de-dup (S5); tests | routine | `parsing/text.py`, `parsing/jsonld.py`, tests | – |
 | T6 | **Done.** `skip` (S6); `RunSummary` all `events/*` (S7); remove `DEPTH_LIMIT` (S8) | routine | `spiders/base.py`, `extensions.py`, `settings.py`, tests | – |
 | T7 | Save and trim iaBilet fixtures | routine | `tests/fixtures/iabilet/*` | – |
 | T8 | iaBilet listing: pagination, seen ids, cancelled skip | moderate | `spiders/iabilet.py`, `tests/test_iabilet.py` | T6, T7 |
