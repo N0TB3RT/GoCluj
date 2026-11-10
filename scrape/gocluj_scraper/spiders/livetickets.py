@@ -11,8 +11,9 @@ IMPLEMENTATION_PLAN section 9). Flow:
    status "online", then build the event from the list item plus a few detail keys.
 
 ``image_url`` is ``IMAGE_ROOT`` + an ``images[].path`` (detail first, then the list
-item), preferring the Background MEDIUM size. The image ``token`` is only a cache-buster
-and is never used.
+item), preferring the Background MEDIUM size. ``image_url_large`` is built the same way
+but prefers ZOOM (then MEDIUM, SQUARE); the detail page uses it. The image ``token`` is
+only a cache-buster and is never used.
 
 Only the detail keys named below are read; the rest (organizer, company, tags, ...) is
 never stored or logged. Unexpected response shapes raise, so the run fails visibly.
@@ -32,14 +33,16 @@ JSON_HEADERS = {"Accept": "application/json"}
 IMAGE_ROOT = "https://livetickets-cdn.azureedge.net/itemimages/"
 # Preferred Background sizes; declared sizes are upper bounds (fit inside, not cropped).
 IMAGE_SIZES = ("MEDIUM", "SQUARE", "ZOOM")
+# The large image (detail page) prefers ZOOM (at most 1920x960).
+LARGE_IMAGE_SIZES = ("ZOOM", "MEDIUM", "SQUARE")
 
 
 def _is_cluj_napoca(city: str | None) -> bool:
     return strip_accents(city or "").lower().strip() == "cluj-napoca"
 
 
-def _image_url(images) -> str | None:
-    """Pick a Background image (MEDIUM, SQUARE, ZOOM, then any) and build its CDN URL."""
+def _image_url(images, sizes=IMAGE_SIZES) -> str | None:
+    """Pick a Background image (by ``sizes`` preference, then any) and build its CDN URL."""
     backgrounds = [
         i
         for i in images or []
@@ -47,7 +50,7 @@ def _image_url(images) -> str | None:
     ]
     if not backgrounds:
         return None
-    rank = {size: n for n, size in enumerate(IMAGE_SIZES)}
+    rank = {size: n for n, size in enumerate(sizes)}
     best = min(backgrounds, key=lambda i: rank.get(i.get("size"), len(rank)))
     return IMAGE_ROOT + quote(best["path"], safe="/")
 
@@ -123,6 +126,10 @@ class LiveticketsSpider(BaseEventSpider):
             ),
             source_category=category,
             image_url=_image_url(detail.get("images")) or _image_url(item.get("images")),
+            image_url_large=(
+                _image_url(detail.get("images"), LARGE_IMAGE_SIZES)
+                or _image_url(item.get("images"), LARGE_IMAGE_SIZES)
+            ),
         )
         if event is not None:
             yield event

@@ -30,6 +30,7 @@ def make_event(external_id="e1", **overrides):
         "categories": [],
         "source_category": None,
         "image_url": None,
+        "image_url_large": None,
     }
     event.update(overrides)
     return event
@@ -73,7 +74,12 @@ def test_create_then_update(client, auth):
     assert first.status_code == 200
     assert first.json() == {"received": 1, "created": 1, "updated": 0}
 
-    changed = make_event(title="New title", description="Line 1\nLine 2", is_free=None)
+    changed = make_event(
+        title="New title",
+        description="Line 1\nLine 2",
+        is_free=None,
+        image_url_large="https://example.com/large.jpg",
+    )
     second = client.post(URL, json={"events": [changed]}, headers=auth)
     assert second.json() == {"received": 1, "created": 0, "updated": 1}
 
@@ -83,6 +89,7 @@ def test_create_then_update(client, auth):
     assert item["title"] == "New title"
     assert item["description"] == "Line 1\nLine 2"
     assert item["is_free"] is None
+    assert item["image_url_large"] == "https://example.com/large.jpg"
 
 
 def test_batch_counts_mixed(client, auth):

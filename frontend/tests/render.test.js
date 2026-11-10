@@ -58,15 +58,20 @@ test('card renders the required fields, source label, date range and detail link
 test('card renders a lazy image when there is a url and a placeholder when there is not', () => {
   const withImage = render({ status: 'success', events: events() })
   assert.match(withImage, /<img src="https:\/\/cdn\.example\/x\.jpg"/)
-  for (const attribute of ['loading="lazy"', 'decoding="async"', 'width="800"', 'height="450"', 'alt=""', 'referrerPolicy="no-referrer"']) {
+  for (const attribute of ['loading="lazy"', 'decoding="async"', 'alt=""', 'referrerPolicy="no-referrer"']) {
     assert.ok(withImage.includes(attribute), attribute)
   }
   assert.doesNotMatch(withImage, /data-placeholder/)
+  assert.doesNotMatch(withImage, /width="800"|height="450"/)
+  assert.match(withImage, /<img class="event-media-backdrop" src="https:\/\/cdn\.example\/x\.jpg" alt="" aria-hidden="true" loading="lazy"/)
+  assert.equal(withImage.match(/cdn\.example\/x\.jpg/g).length, 2)
 
   const without = render({ status: 'success', events: events({ image_url: null }) })
   assert.match(without, /data-placeholder="true"/)
   assert.match(without, /gocluj-white\.svg/)
   assert.doesNotMatch(without, /cdn\.example/)
+  assert.doesNotMatch(without, /event-media-backdrop/)
+  assert.match(without, /<img src="\/images\/gocluj-white\.svg" alt="" width="165" height="44" aria-hidden="true"\/>/)
 })
 
 test('card falls back to Cluj-Napoca without a source name and omits the link without an id', () => {
@@ -101,6 +106,19 @@ test('detail page shows all fields, the ticket button and a back link', () => {
   ]) {
     assert.ok(html.includes(expected), expected)
   }
+})
+
+test('detail page prefers image_url_large and falls back to image_url', () => {
+  const large = renderDetail({ status: 'success', event: events({ image_url_large: 'https://cdn.example/x_ZOOM.jpg' })[0] })
+  // Count <img> tags only: React also emits a <link rel="preload"> for eager images.
+  assert.equal(large.match(/<img[^>]*src="https:\/\/cdn\.example\/x_ZOOM\.jpg"/g).length, 2)
+  assert.doesNotMatch(large, /cdn\.example\/x\.jpg/)
+  assert.match(large, /event-media-backdrop/)
+  assert.match(large, /loading="eager"/)
+
+  const fallback = renderDetail({ status: 'success', event: events({ image_url_large: null })[0] })
+  assert.equal(fallback.match(/<img[^>]*src="https:\/\/cdn\.example\/x\.jpg"/g).length, 2)
+  assert.doesNotMatch(fallback, /ZOOM/)
 })
 
 test('detail description is escaped text, never HTML', () => {

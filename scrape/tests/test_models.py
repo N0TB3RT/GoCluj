@@ -190,10 +190,17 @@ def test_source_category_is_cleaned():
     assert make(source_category="  Muzică \n live ").source_category == "Muzică live"
 
 
-def test_image_url_keeps_absolute_http():
-    assert make(image_url=" https://cdn.example/a.jpg ").image_url == "https://cdn.example/a.jpg"
+@pytest.mark.parametrize("field", ["image_url", "image_url_large"])
+def test_image_url_keeps_absolute_http(field):
+    event = make(**{field: " https://cdn.example/a.jpg "})
+    assert getattr(event, field) == "https://cdn.example/a.jpg"
 
 
+@pytest.mark.parametrize("field", ["image_url", "image_url_large"])
 @pytest.mark.parametrize("url", ["/img/a.jpg", "javascript:alert(1)", "", "  ", None])
-def test_image_url_drops_non_http(url):
-    assert make(image_url=url).image_url is None
+def test_image_url_drops_non_http(field, url):
+    assert getattr(make(**{field: url}), field) is None
+
+
+def test_image_url_large_defaults_to_none():
+    assert make().image_url_large is None

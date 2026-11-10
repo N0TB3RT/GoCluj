@@ -12,6 +12,7 @@ const backendEvent = {
   venue: { name: 'MATTER', address: 'Str. Universității 3', city: 'Cluj-Napoca', lat: 46.768, lng: 23.59 },
   price_text: '30 - 35 RON', is_free: false, categories: [], source_category: 'divertisment',
   image_url: 'https://cdn.example/x/Background_MEDIUM.jpg',
+  image_url_large: 'https://cdn.example/x/Background_ZOOM.jpg',
 }
 const page = (items = [backendEvent], extra = {}) => ({ items, total: items.length, limit: 20, offset: 0, ...extra })
 const response = (body, status = 200) => new Response(JSON.stringify(body), {
@@ -42,6 +43,7 @@ test('requests GET /api/events with limit and offset and maps the page', async (
     startAt: '2026-11-12T21:00:00+02:00', endAt: '2026-11-13T05:00:00+02:00',
     venueName: 'MATTER', venueAddress: 'Str. Universității 3', price: '30 - 35 RON',
     sourceName: 'LiveTickets', sourceUrl: backendEvent.source_url, imageUrl: backendEvent.image_url,
+    imageUrlLarge: backendEvent.image_url_large,
   })
 })
 
@@ -57,7 +59,7 @@ test('null optional fields get honest fallbacks, not invented data', () => {
   const event = normalizeEvent({
     id: 3, title: 'Minimal', description: null, start_at: '2026-11-12T21:00:00+02:00', end_at: null,
     venue: { name: null, address: null, city: null, lat: null, lng: null },
-    price_text: null, is_free: null, source_category: null, image_url: null, source_url: null, source_name: null,
+    price_text: null, is_free: null, source_category: null, image_url: null, image_url_large: null, source_url: null, source_name: null,
   })
   assert.equal(event.description, null)
   assert.equal(event.endAt, null)
@@ -65,6 +67,8 @@ test('null optional fields get honest fallbacks, not invented data', () => {
   assert.equal(event.venueAddress, null)
   assert.equal(event.price, 'Preț neprecizat')
   assert.equal(event.imageUrl, null)
+  assert.equal(event.imageUrlLarge, null)
+  assert.equal(normalizeEvent({ id: 5 }).imageUrlLarge, null)
   assert.equal(event.sourceUrl, null)
   assert.equal(event.sourceName, null)
   assert.equal(normalizeEvent({ id: 4, title: 'No venue', venue: null }).venueName, 'Locație neprecizată')
@@ -86,6 +90,8 @@ test('source and image links allow only absolute HTTP(S) addresses', () => {
   assert.equal(safeSourceUrl('https://example.org/event'), 'https://example.org/event')
   assert.equal(safeImageUrl('http://cdn.example/a.jpg'), 'http://cdn.example/a.jpg')
   assert.equal(normalizeEvent({ id: 1, image_url: 'javascript:alert(1)' }).imageUrl, null)
+  assert.equal(normalizeEvent({ id: 1, image_url_large: 'javascript:alert(1)' }).imageUrlLarge, null)
+  assert.equal(normalizeEvent({ id: 1, image_url_large: 'http://cdn.example/big.jpg' }).imageUrlLarge, 'http://cdn.example/big.jpg')
 })
 
 test('formats offsets in Bucharest and preserves date-only and naive source times', () => {

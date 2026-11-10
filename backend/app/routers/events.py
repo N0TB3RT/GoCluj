@@ -30,6 +30,7 @@ def to_event_out(event: Event) -> EventOut:
         categories=[category.name for category in event.categories],
         source_category=event.source_category,
         image_url=event.image_url,
+        image_url_large=event.image_url_large,
     )
 
 

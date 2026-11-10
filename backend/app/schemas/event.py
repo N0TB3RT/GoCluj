@@ -25,6 +25,7 @@ class EventOut(BaseModel):
     categories: list[str]
     source_category: str | None = None
     image_url: str | None = None
+    image_url_large: str | None = None
 
 
 class EventPage(BaseModel):

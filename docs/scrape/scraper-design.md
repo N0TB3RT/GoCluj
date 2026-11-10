@@ -93,7 +93,8 @@ No global `DEPTH_LIMIT` (removed by S8).
 | `is_free` | bool \| None | no | model | Derived by `detect_is_free(price_text)` when not set ("0 RON", "gratuit", "intrare liberă" → True) |
 | `categories` | list[str] | no | – | Empty until DATA-03 tagging |
 | `source_category` | str \| None | no | spider (S3) | Raw category hint for DATA-03; not a tag |
-| `image_url` | str \| None | no | spider | – |
+| `image_url` | str \| None | no | spider | Card image (MEDIUM size for LiveTickets); absolute http(s) only |
+| `image_url_large` | str \| None | no | spider | Larger image for the detail page (LiveTickets ZOOM, at most 1920x960); absolute http(s) only; None for other sources |
 
 ## 6. Shared changes (S5 open, the rest done)
 

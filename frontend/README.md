@@ -54,7 +54,8 @@ Pentru publicarea unui build static, `VITE_API_URL` se stabilește la build. Dac
       "is_free": false,
       "categories": [],
       "source_category": "divertisment",
-      "image_url": "https://cdn.example/x/Background_MEDIUM.jpg"
+      "image_url": "https://cdn.example/x/Background_MEDIUM.jpg",
+      "image_url_large": "https://cdn.example/x/Background_ZOOM.jpg"
     }
   ],
   "total": 31,
@@ -63,7 +64,7 @@ Pentru publicarea unui build static, `VITE_API_URL` se stabilește la build. Dac
 }
 ```
 
-`description`, `end_at`, every `venue` field, `price_text`, `is_free`, `source_category` and `image_url` may be `null`.
+`description`, `end_at`, every `venue` field, `price_text`, `is_free`, `source_category`, `image_url` and `image_url_large` may be `null`. `image_url` is the medium image used on cards; `image_url_large` is the larger image (up to 1920x960) used on the detail page, which falls back to `image_url` when it is missing or fails to load.
 
 `GET /api/events/{id}` returns one event object with the same shape, or HTTP 404 `{"detail": "Event not found"}`. The client reports a 404 with the distinct error code `not-found` and shows "Evenimentul nu a fost găsit.".
 
@@ -71,9 +72,9 @@ Frontend routes: `/` is the home page with the event list; `/evenimente/:id` is 
 
 Client rules:
 
-- The event is normalized to `{ id, key, title, description, startAt, endAt, venueName, venueAddress, price, sourceName, sourceUrl, imageUrl }`.
+- The event is normalized to `{ id, key, title, description, startAt, endAt, venueName, venueAddress, price, sourceName, sourceUrl, imageUrl, imageUrlLarge }`.
 - Price: `is_free === true` shows "Gratuit"; otherwise `price_text`, otherwise "Preț neprecizat". Free admission is never assumed.
-- `source_url` and `image_url` are accepted only when they are absolute HTTP(S) URLs. Source links open in a new tab with `noopener noreferrer`; external images use `referrerPolicy="no-referrer"`. A missing or broken image is replaced by a placeholder.
+- `source_url`, `image_url` and `image_url_large` are accepted only when they are absolute HTTP(S) URLs. Source links open in a new tab with `noopener noreferrer`; external images use `referrerPolicy="no-referrer"`. Images are shown whole (`object-fit: contain`) in the 16:9 box over a blurred, decorative copy of themselves, so portrait posters are not cropped. A missing or broken image is replaced by a placeholder.
 - Timestamps with an offset are shown in `Europe/Bucharest`; timestamps without an offset keep the provided wall-clock time. When `end_at` is later than `start_at` a range is shown ("12 noiembrie 2026, 21:00 – 23:00" on the same day, otherwise both dates).
 - The description is rendered as plain text (`white-space: pre-line`), never as HTML.
 

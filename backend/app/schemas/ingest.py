@@ -31,6 +31,7 @@ class EventIngest(BaseModel):
     categories: list[str] = Field(default_factory=list)
     source_category: Annotated[str | None, Field(max_length=100)] = None
     image_url: Annotated[str | None, Field(max_length=1000)] = None
+    image_url_large: Annotated[str | None, Field(max_length=1000)] = None
 
 
 class IngestRequest(BaseModel):

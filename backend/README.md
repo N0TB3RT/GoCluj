@@ -92,7 +92,8 @@ names are ignored). Missing/wrong token or unset server token gives 401.
       "is_free": false,
       "categories": ["Party"],
       "source_category": "divertisment",
-      "image_url": null
+      "image_url": null,
+      "image_url_large": null
     }
   ],
   "total": 1,

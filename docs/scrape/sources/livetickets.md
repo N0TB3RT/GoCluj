@@ -120,7 +120,8 @@ Keys seen: `id, name, start_date, end_date, ticket_count, remaining_count, seati
 | `venue.lat`, `lng` | detail `location.lat/lng` | 0.0 means unknown: `None` unless both are non-zero |
 | `price_text` | `format_price([price_min, price_max], currency["code"])` from the list | `None` when list `price_max` is 0 or missing (R7) |
 | `is_free` | not set | derived from `price_text`, so `None` for unknown price |
-| `image_url` | `IMAGE_ROOT` + `images[].path` of a Background image (detail first, then list item) | R9 |
+| `image_url` | `IMAGE_ROOT` + `images[].path` of a Background image (detail first, then list item), ranked MEDIUM, SQUARE, ZOOM | R9 |
+| `image_url_large` | Same as `image_url` but ranked ZOOM, MEDIUM, SQUARE | R9 |
 | `source_category` | name of the first detail `item_tags` entry with `type == "Category"`, else `None` | raw hint only (R10) |
 | `categories` | not set | DATA-03 |
 
@@ -205,4 +206,4 @@ Findings from the first live run (2026-11-10), in priority order. The first thre
 | F3 | **Prices differ between list and detail** (for example 35 vs 40 RON max; detail `price_min` is null). The spider uses the list values; the reason is unknown | To investigate | Compare both values with the price shown on a few event pages, then keep the source that matches |
 | F4 | The API returns XML by default; the first live run failed on this | Handled | Keep `Accept: application/json` on both requests (`JSON_HEADERS`); the tests assert it |
 | F5 | No `company` block appeared, but details carry tracking ids and organizer contact emails (R11) | Handled | The spider never reads them and the fixtures are stripped. Whenever a fixture is added or refreshed, check that `git grep -n -i -E "company|secret|token|pixel|email|password" -- scrape/tests/fixtures/livetickets` returns nothing |
-| F6 | The detail page uses the same MEDIUM image as the card; it can be small (e.g. 363x450) and looks soft when enlarged | To decide | Store a second, larger image (ZOOM) for the detail page; needs a new contract field |
+| F6 | The detail page uses the same MEDIUM image as the card; it can be small (e.g. 363x450) and looks soft when enlarged | Handled | The detail page uses ZOOM through the new `image_url_large` field; the frontend shows images with object-fit contain plus a blurred backdrop |

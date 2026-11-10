@@ -20,6 +20,7 @@ _CONTENT_COLUMNS = (
     "is_free",
     "source_category",
     "image_url",
+    "image_url_large",
 )
 
 
@@ -41,6 +42,7 @@ def _row_values(item: EventIngest) -> dict:
         "is_free": item.is_free,
         "source_category": item.source_category,
         "image_url": item.image_url,
+        "image_url_large": item.image_url_large,
     }
 
 

@@ -71,6 +71,7 @@ class Event(BaseModel):
     categories: list[str] = Field(default_factory=list)
     source_category: str | None = None
     image_url: str | None = None
+    image_url_large: str | None = None
 
     @field_validator("source_url", mode="before")
     @classmethod
@@ -96,7 +97,7 @@ class Event(BaseModel):
     def _clean(cls, value: Any) -> str | None:
         return clean_text(value)
 
-    @field_validator("image_url", mode="before")
+    @field_validator("image_url", "image_url_large", mode="before")
     @classmethod
     def _image_url(cls, value: Any) -> str | None:
         if not isinstance(value, str) or not (url := value.strip()):

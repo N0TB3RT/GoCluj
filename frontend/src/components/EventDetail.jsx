@@ -34,7 +34,7 @@ export default function EventDetail({ status, event, error, onRetry }) {
   return (
     <article className="event-detail">
       <BackLink />
-      <EventImage url={event.imageUrl} className="event-detail-media" eager />
+      <EventImage url={event.imageUrlLarge} fallbackUrl={event.imageUrl} className="event-detail-media" eager />
       <p className="eyebrow mt-8 mb-3">{event.sourceName || 'Cluj-Napoca'}</p>
       <h1 className="font-display text-3xl leading-tight sm:text-5xl">{event.title}</h1>
       <dl className="event-details detail-facts">

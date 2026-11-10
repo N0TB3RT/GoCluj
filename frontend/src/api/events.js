@@ -50,6 +50,7 @@ export function normalizeEvent(raw) {
     sourceName: text(raw.source_name) || null,
     sourceUrl: safeSourceUrl(raw.source_url),
     imageUrl: safeImageUrl(raw.image_url),
+    imageUrlLarge: safeImageUrl(raw.image_url_large),
   }
 }
 

@@ -57,15 +57,23 @@ def test_limit_and_offset_validation(client):
 
 
 def test_event_shape(client, auth):
-    ingest(client, auth, make_event(image_url="https://example.com/i.jpg"))
+    ingest(
+        client,
+        auth,
+        make_event(
+            image_url="https://example.com/i.jpg", image_url_large="https://example.com/i-large.jpg"
+        ),
+    )
     item = client.get("/api/events").json()["items"][0]
     assert set(item) == {
         "id", "source_name", "source_url", "title", "description", "start_at", "end_at",
         "venue", "price_text", "is_free", "categories", "source_category", "image_url",
+        "image_url_large",
     }  # fmt: skip
     assert item["venue"] == {
         "name": "Hall", "address": "Str. 1", "city": "Cluj-Napoca", "lat": 46.7, "lng": 23.6,
     }  # fmt: skip
+    assert item["image_url_large"] == "https://example.com/i-large.jpg"
     assert datetime.fromisoformat(item["start_at"]).tzinfo is not None
 
 

@@ -226,6 +226,22 @@ def test_parse_event_image_url_falls_back_to_list_item(make_spider, fake_respons
     assert event["image_url"] == (
         "https://livetickets-cdn.azureedge.net/itemimages/x%20y/Background_MEDIUM.jpg"
     )
+    assert event["image_url_large"] == event["image_url"]
+
+
+def test_parse_event_image_url_large_prefers_zoom(make_spider, fake_response):
+    (event,), _ = run_event(make_spider(LiveticketsSpider), fake_response)
+    assert event["image_url_large"] == IMAGE + "Background_ZOOM.jpg"
+
+
+def test_parse_event_image_url_large_falls_back_to_medium(make_spider, fake_response):
+    detail = load("event_detail.json") | {"images": []}
+    item = load("events.json")[0]
+    item["images"] = [{"name": "Background", "path": "a/Background_MEDIUM.jpg", "size": "MEDIUM"}]
+    (event,), _ = run_event(make_spider(LiveticketsSpider), fake_response, item=item, detail=detail)
+    assert event["image_url_large"] == (
+        "https://livetickets-cdn.azureedge.net/itemimages/a/Background_MEDIUM.jpg"
+    )
 
 
 def test_parse_event_image_url_never_uses_ticket_images(make_spider, fake_response):
@@ -234,3 +250,4 @@ def test_parse_event_image_url_never_uses_ticket_images(make_spider, fake_respon
     item = load("events.json")[0] | {"images": []}
     (event,), _ = run_event(make_spider(LiveticketsSpider), fake_response, item=item, detail=detail)
     assert event["image_url"] is None
+    assert event["image_url_large"] is None

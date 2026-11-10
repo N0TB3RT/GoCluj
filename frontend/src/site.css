@@ -80,7 +80,9 @@
 .event-card { padding: 0; overflow: hidden; }
 .event-card-body { display: flex; flex: 1; flex-direction: column; padding: 24px; }
 .event-media { position: relative; aspect-ratio: 16 / 9; width: 100%; overflow: hidden; background: var(--surface); }
-.event-media > img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.event-media > img { position: relative; display: block; width: 100%; height: 100%; object-fit: contain; object-position: center; }
+/* Blurred copy of the picture fills the letterbox around portrait posters; it is first in the DOM, so it sits beneath the main image. */
+.event-media > .event-media-backdrop { position: absolute; inset: 0; object-fit: cover; filter: blur(20px) brightness(.75); transform: scale(1.15); }
 .event-media-placeholder { display: grid; place-items: center; background: linear-gradient(135deg, var(--green-soft) 0%, var(--surface) 55%, var(--page-bg) 100%); }
 .event-media-placeholder > img { width: 42%; max-width: 165px; height: auto; opacity: .22; }
 .event-title-link { color: inherit; text-decoration: none; }
