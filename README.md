@@ -111,7 +111,7 @@ To try a single source with one listing page:
 docker compose run --rm scraper python -m scrapy crawl iabilet -a max_pages=1
 ```
 
-The iaBilet parser is still being written, so for now its run finishes with 0 events and is reported as "failed". That's expected. See [`scrape/README.md`](scrape/README.md) for details and how to add a new source.
+See [`scrape/README.md`](scrape/README.md) for details and how to add a new source.
 
 ### Step 7: Run the tests
 

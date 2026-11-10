@@ -87,7 +87,7 @@ No global `DEPTH_LIMIT` (removed by S8).
 | `title` | str | yes | spider | `clean_text`; empty → invalid |
 | `description` | str \| None | no | spider | **S2:** `<br>` and closing block tags (`</p>`, `</div>`, `</li>`, ...) → `\n`, `w3lib.html.remove_tags`, then `clean_text(..., multiline=True)`: `\r\n` → `\n`, space runs collapse, lines stripped, at most one blank line kept. |
 | `start_at` | datetime | yes | spider | ISO or Romanian text → aware Europe/Bucharest; naive values localized |
-| `end_at` | datetime \| None | no | spider | Same as `start_at`. **S1:** date-only `YYYY-MM-DD` → that day 23:59:59 local; `end_at <= start_at` → None |
+| `end_at` | datetime \| None | no | spider | Same as `start_at`. **S1:** date-only `YYYY-MM-DD` → that day 23:59:59 local; `end_at <= start_at` → None; end exactly 23:59:59 on start's local day → None (no real end time) |
 | `venue` | `{name, address, city, lat, lng}` | no | spider | Text fields `clean_text`; extra keys forbidden |
 | `price_text` | str \| None | no | spider, via `format_price` (S4) | `clean_text`; format "59 - 99 RON", single value when equal |
 | `is_free` | bool \| None | no | model | Derived by `detect_is_free(price_text)` when not set ("0 RON", "gratuit", "intrare liberă" → True) |
@@ -100,17 +100,17 @@ No global `DEPTH_LIMIT` (removed by S8).
 
 **Run-breaking** (had to be fixed before trusting any live numbers):
 
-- **S1** (done) - date-only `endDate` dropped today's events: `parse_ro_datetime("2026-11-12")` gives 00:00, so the past check `(end_at or start_at) < now` (`spiders/base.py:54`) dropped every event happening today. The `end_at` validator now sets 23:59:59 (`models.py:114`).
+- **S1** (done) - date-only `endDate` dropped today's events: `parse_ro_datetime("2026-11-12")` gives 00:00, so the past check `(end_at or start_at) < now` (`spiders/base.py:54`) dropped every event happening today. The `end_at` validator now sets 23:59:59. Follow-up: when that lands on the start day (iaBilet single-day events: `endDate` = start date) `_finalize` sets `end_at = None` so the UI shows no invented "– 23:59"; such events fall back to `start_at` for the past check and disappear once started (accepted). Multi-day events keep 23:59:59 and stay listed until their last day. An explicit 23:59:59 end on the start day is also dropped (indistinguishable).
 - **S8** (done) - the old `DEPTH_LIMIT = 10`: listing page N is depth N-1 and its detail pages depth N, so the events of listing pages past 10 were silently dropped. Removed from `settings.py`.
 - **Pagination that never returns an empty page** (source-specific, iaBilet): pages past the end still return a promoted card, so "stop on empty page" never fires. See [iaBilet](sources/iabilet.md).
 
 | # | Change | File | Why / users | Task | Status |
 |---|---|---|---|---|---|
-| S1 | Date-only end → 23:59:59 local; `end_at <= start_at` → None | `models.py` | **Bug:** today's events dropped as past | T2 | done |
+| S1 | Date-only end → 23:59:59 local; same-day 23:59:59 end → None; `end_at <= start_at` → None | `models.py` | **Bug:** today's events dropped as past | T2 | done |
 | S2 | Description cleaning: `remove_tags` + `clean_text(multiline=True)` | `models.py`, `parsing/text.py` | LiveTickets (HTML), iaBilet (`\r\n` plain text) | T3 | done |
 | S3 | `external_id` required non-empty; new `source_category` | `models.py`, `tests/test_models.py` | Upsert key; DATA-03 hint | T4 | done |
 | S4 | `format_price(amounts, currency) -> str \| None`; `jsonld._price_text` calls it | `parsing/text.py`, `parsing/jsonld.py` | JSON-LD offers, iaBilet tariffs, LiveTickets min/max | T5 | done |
-| S5 | `_address`: don't append city when `streetAddress` already ends with it (accent/case-insensitive) | `parsing/jsonld.py` | iaBilet ("…, Cluj-Napoca" + locality "Cluj-Napoca") | T5 | done |
+| S5 | `_address`: don't append city when `streetAddress` already contains it as whole words (accent/case-insensitive; e.g. "…, Cluj-Napoca 400535") | `parsing/jsonld.py` | iaBilet ("…, Cluj-Napoca" + locality "Cluj-Napoca") | T5 | done |
 | S6 | `skip(reason, url=None)`: inc `events/<reason>`, DEBUG log; `make_event` uses it for past; docstring: listing → detail is optional | `spiders/base.py` | Every spider's drops; LiveTickets is JSON list + detail | T6 | done |
 | S7 | `RunSummary` reports every `events/*` stat, not a hard-coded list | `extensions.py` | New counters/sources need no change there | T6 | done |
 | S8 | Remove global `DEPTH_LIMIT` | `settings.py` | **Bug:** truncation past page 10; crawl bounded by stop condition, `max_pages`, `CLOSESPIDER_TIMEOUT` | T6 | done |
@@ -124,10 +124,10 @@ Counters (Scrapy stat keys):
 | `events/valid` | Emitted | `make_event` |
 | `events/invalid` | Failed `Event` validation | `make_event` |
 | `events/past` | Already ended | `make_event` via `skip` |
-| `events/cancelled` | Cancelled at source | spider `skip` (iaBilet, not written yet) |
+| `events/cancelled` | Cancelled at source | spider `skip` (iaBilet) |
 | `events/not_cluj` | Outside Cluj | spider `skip` (LiveTickets) |
 | `events/no_city` | Source gives no city, so Cluj cannot be checked | spider `skip` (LiveTickets) |
-| `events/no_jsonld` | Detail page without Event JSON-LD | spider `skip` (iaBilet, not written yet) |
+| `events/no_jsonld` | Detail page without Event JSON-LD | spider `skip` (iaBilet) |
 | `events/status_<value>` | Unexpected source status | spider `skip` (LiveTickets) |
 | `events/time_slots` | Emitted, but source has time slots | spider (LiveTickets) |
 
@@ -184,13 +184,13 @@ Adding source 3..6 costs one spider file (~60-120 lines), 2-3 fixtures and one t
 | T4 | **Done.** `external_id` required, `source_category` (S3); fix tests | routine | `models.py`, `tests/test_models.py` | – |
 | T5 | **Done.** `format_price` (S4), `_address` city de-dup (S5); tests | routine | `parsing/text.py`, `parsing/jsonld.py`, tests | – |
 | T6 | **Done.** `skip` (S6); `RunSummary` all `events/*` (S7); remove `DEPTH_LIMIT` (S8) | routine | `spiders/base.py`, `extensions.py`, `settings.py`, tests | – |
-| T7 | Save and trim iaBilet fixtures | routine | `tests/fixtures/iabilet/*` | – |
-| T8 | iaBilet listing: pagination, seen ids, cancelled skip | moderate | `spiders/iabilet.py`, `tests/test_iabilet.py` | T6, T7 |
-| T9 | iaBilet detail mapping (tariffs, title prefix, breadcrumb category) | moderate | `spiders/iabilet.py`, tests | T2-T5, T8 |
+| T7 | **Done.** Save and trim iaBilet fixtures | routine | `tests/fixtures/iabilet/*` | – |
+| T8 | **Done.** iaBilet listing: pagination, seen ids, cancelled skip | moderate | `spiders/iabilet.py`, `tests/test_iabilet.py` | T6, T7 |
+| T9 | **Done.** iaBilet detail mapping (tariffs, title prefix, breadcrumb category) | moderate | `spiders/iabilet.py`, tests | T2-T5, T8 |
 | T10 | **Done.** LiveTickets terms check (INV-01), recorded in IMPLEMENTATION_PLAN §9 | routine (owner) | `docs/IMPLEMENTATION_PLAN.md` | – |
 | T11 | **Done.** LiveTickets fixtures + spider | moderate | `spiders/livetickets.py`, `tests/fixtures/livetickets/*`, `tests/test_livetickets.py` | T2-T6, T10 |
 | T12 | **Done.** LiveTickets image URL template (R9 in the source spec) | routine | `spiders/livetickets.py`, `models.py` | T11 |
-| T13 | **Partly done:** full `run.py` run with ingest verified 2026-11-10 (31 LiveTickets events, re-ingest without duplicates); iabilet is still a stub, so `run.py` reports it as failed. Remaining: iaBilet run, timing, tune `custom_settings` | moderate | settings, spiders | T9, T11 |
+| T13 | **Partly done:** full `run.py` run with ingest verified 2026-11-10 (31 LiveTickets events, re-ingest without duplicates); the iaBilet spider is now implemented (T7-T9). Remaining: iaBilet run, timing, tune `custom_settings` | moderate | settings, spiders | T9, T11 |
 | T14 | **Done (2026-11-10):** backend contract test ingests real scraper output | hard (cross-team) | `models.py`, `ingest.py`, tests | PRJ-01, BE-02 |
 
 ## 13. Open questions

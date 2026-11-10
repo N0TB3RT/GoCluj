@@ -59,7 +59,7 @@ By **mid-January 2027**, GoCluj is live on a public HTTPS URL.
 | Infra | `docker-compose.yml` with Postgres 15, pgAdmin, backend, frontend, scraper |
 | Backend | FastAPI `app/` package; token-protected `POST /api/ingest/events` (upsert on `(source_name, external_id)`); `GET /api/events` (paginated, upcoming only), `GET /api/events/{id}`, `GET /api/categories`; CORS from `CORS_ORIGINS`; pytest incl. a contract test with real scraper output. See `backend/README.md` |
 | Database | Alembic migrations are the only schema source (run on backend start); `data/schema1.sql` removed |
-| Data | Scrapy in `scrape/`; LiveTickets spider live and ingesting (incl. `image_url`); iaBilet still a stub |
+| Data | Scrapy in `scrape/`; LiveTickets spider live and ingesting (incl. `image_url`); iaBilet spider implemented (T7-T9), full run and timing pending (T13) |
 | Frontend | PRJ-00 done; event cards with images, source label, date ranges and "Încarcă mai multe"; detail page `/evenimente/:id` with a link to the source |
 
 Verified end to end on 2026-11-10: fresh DB via Alembic → `docker compose run --rm scraper` ingested 31 LiveTickets events (all with images) → re-ingest created no duplicates → frontend shows cards and the detail page.
