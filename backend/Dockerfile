@@ -13,8 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # 4. Install pinned Python dependencies
 # (copied before the source code so this layer is cached until requirements.txt changes)
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt requirements-dev.txt ./
+RUN pip install --no-cache-dir -r requirements-dev.txt
 
 # 5. Copy backend source code into the container
 COPY . .
@@ -23,4 +23,4 @@ COPY . .
 EXPOSE 8000
 
 # 7. Command to start FastAPI server with auto-reload
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
