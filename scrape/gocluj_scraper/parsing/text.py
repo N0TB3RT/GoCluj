@@ -30,12 +30,19 @@ _DAY_MONTH_RE = re.compile(r"\b(\d{1,2})\s+([a-z]+)\.?(?:,?\s+(\d{4}))?")
 _PRICE_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(?:lei|ron|eur|€)|(?:€|eur)\s*(\d+(?:[.,]\d+)?)")
 
 
-def clean_text(value: str | None) -> str | None:
-    """Unescape HTML entities, collapse whitespace; empty becomes None."""
+def clean_text(value: str | None, multiline: bool = False) -> str | None:
+    """Unescape HTML entities, collapse whitespace; empty becomes None.
+
+    With ``multiline=True`` line breaks are kept (max one blank line) and each line is stripped.
+    """
     if value is None:
         return None
-    text = " ".join(html.unescape(str(value)).split())
-    return text or None
+    unescaped = html.unescape(str(value))
+    if not multiline:
+        return " ".join(unescaped.split()) or None
+    unescaped = unescaped.replace("\r\n", "\n").replace("\r", "\n")
+    lines = [re.sub(r"[^\S\n]+", " ", line).strip() for line in unescaped.split("\n")]
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip() or None
 
 
 def strip_accents(text: str) -> str:

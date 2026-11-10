@@ -89,3 +89,16 @@ def test_parse_ro_datetime_recent_past_keeps_year():
 @pytest.mark.parametrize("text", ["", "mâine seara", "31 februarie 2026", "foo 12"])
 def test_parse_ro_datetime_unparseable(text):
     assert parse_ro_datetime(text, now=NOW) is None
+
+
+def test_clean_text_default_is_single_line():
+    assert clean_text("a\r\nb\n\n\nc") == "a b c"
+
+
+def test_clean_text_multiline():
+    assert clean_text("a\r\nb\rc", multiline=True) == "a\nb\nc"
+    assert clean_text("  a \t b\u00a0 c  \n  d  ", multiline=True) == "a b c\nd"
+    assert clean_text("a\n\n\n\n\nb\n\nc", multiline=True) == "a\n\nb\n\nc"
+    assert clean_text("x&nbsp;&amp;&nbsp;y", multiline=True) == "x & y"
+    assert clean_text(" \r\n \n", multiline=True) is None
+    assert clean_text(None, multiline=True) is None
