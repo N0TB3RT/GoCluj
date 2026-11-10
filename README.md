@@ -58,6 +58,13 @@ Open `.env` and change the `change-me` passwords. If you change `POSTGRES_USER`,
 postgresql+psycopg2://<POSTGRES_USER>:<POSTGRES_PASSWORD>@db:5432/<POSTGRES_DB>
 ```
 
+Set the scraper ingest settings so scraped events reach the backend:
+
+```
+INGEST_TOKEN=<random value, e.g. from `openssl rand -hex 24`>
+INGEST_URL=http://backend:8000/api/ingest/events
+```
+
 > `.env` is gitignored. Never commit it.
 
 ### Step 4: Start the project
@@ -87,7 +94,7 @@ To run it in the background instead, use `docker compose up --build -d` and stop
    - port `5432`
    - the user, password and database from your `.env`
 
-The database tables are created automatically from `data/schema1.sql` the **first** time the database starts.
+The database tables are created by Alembic migrations, which run automatically every time the backend starts. After a schema change that needs a clean start (or if your local DB was created from the old `schema1.sql`), reset it with `docker compose down -v` (deletes local data).
 
 ### Step 6: Run the scrapers (optional)
 
@@ -117,7 +124,14 @@ docker run --rm -v "$PWD/scrape:/app" -w /app python:3.11-slim sh -c \
 
 On Windows Git Bash, prefix the command with `MSYS_NO_PATHCONV=1`. In PowerShell, use `${PWD}/scrape` instead of `$PWD/scrape`.
 
-Backend and frontend tests will be added in BE-01 / FE-01.
+Backend lint and tests (they use a separate `<POSTGRES_DB>_test` database; the `db` service must be running):
+
+```bash
+docker compose run --rm --no-deps backend pytest -q
+docker compose run --rm --no-deps backend ruff check .
+```
+
+See [`backend/README.md`](backend/README.md). Frontend tests will be added in FE-01.
 
 ---
 
@@ -146,8 +160,7 @@ If you add a dependency, rebuild that service with `docker compose up --build <s
 - **`port is already allocated`:** another program is using port 3000, 8000, 5050 or 5432 (often a local PostgreSQL). Stop that program, or change the left-hand port in `docker-compose.yml` (e.g. `"5433:5432"`).
 - **Backend fails with `DATABASE_URL environment variable is not set`:** your `.env` is missing or isn't in the project root. Repeat Step 3.
 - **Backend can't connect to the database:** check that the user, password and database name in `DATABASE_URL` match `POSTGRES_*`, and that the host is `db`, not `localhost`.
-- **Backend fails with `No module named 'psycopg'`:** your `DATABASE_URL` starts with `postgresql://`. Change it to `postgresql+psycopg2://` (as in `.env.example`).
-- **Database tables are missing or outdated after a schema change:** `schema1.sql` only runs on the very first start. Reset the database (see the table above).
+- **Database tables are missing or outdated after a schema change:** Migrations run on backend start; if the DB still comes from the old `schema1.sql`, reset it (see the table above).
 - **`docker: command not found` or "cannot connect to the Docker daemon":** Docker Desktop isn't installed or isn't running.
 - **Frontend doesn't reload on Windows:** file polling is already enabled in `vite.config.js`. Restart the service with `docker compose restart frontend`.
 
@@ -156,3 +169,4 @@ If you add a dependency, rebuild that service with `docker compose up --build <s
 - [Implementation plan](docs/IMPLEMENTATION_PLAN.md): goals, epics, sprints, decisions
 - [Scraper design](docs/scrape/scraper-design.md): how event collection works and why
 - [Scraper README](scrape/README.md): running scrapers and adding a new source
+- [Backend README](backend/README.md): API, migrations and tests

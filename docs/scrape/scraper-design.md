@@ -3,7 +3,7 @@
 > Owner: Data team. Covers DATA-01..05. Code lives in [`scrape/`](../../scrape/README.md).
 > Last updated: 2026-11-10.
 
-**Status.** Implemented: Scrapy framework and settings, `Event` model, parsing helpers, `BaseEventSpider`, runner (`run.py`), `RunSummary`, `ingest.py`, unit tests. LiveTickets spider (`livetickets.py`, T11; `image_url`, T12; one live run on 2026-11-10). To do: the iaBilet spider (`iabilet.py`) is a stub; of the shared changes (§6) S1-S4 and S6-S8 are done, S5 is open; the backend ingest endpoint (`POST /api/ingest/events`, BE-02 / PRJ-01) does not exist, so ingest runs in dry-run mode (`INGEST_URL` unset).
+**Status.** Implemented: Scrapy framework and settings, `Event` model, parsing helpers, `BaseEventSpider`, runner (`run.py`), `RunSummary`, `ingest.py`, unit tests. LiveTickets spider (`livetickets.py`, T11; `image_url`, T12; one live run on 2026-11-10). To do: the iaBilet spider (`iabilet.py`) is a stub; of the shared changes (§6) S1-S4 and S6-S8 are done, S5 is open. Ingest is live against the backend `POST /api/ingest/events` (BE-02): with `INGEST_URL` and `INGEST_TOKEN` set it posts for real; dry-run only when `INGEST_URL` is unset.
 
 ## 1. Goals and constraints
 
@@ -45,7 +45,7 @@ cron (OPS-04) ─► docker compose run --rm scraper   (= python -m gocluj_scrap
                     │
                     └─ ingest: JSONL of successful spiders → POST /api/ingest/events
                                in batches, header X-Ingest-Token
-                               (INGEST_URL unset ⇒ dry-run, the case today)
+                               (INGEST_URL unset ⇒ dry-run)
                     exit code ≠ 0 if any spider or the ingest failed → alert (DATA-05 / OPS-04)
 ```
 
@@ -189,8 +189,8 @@ Adding source 3..6 costs one spider file (~60-120 lines), 2-3 fixtures and one t
 | T10 | **Done.** LiveTickets terms check (INV-01), recorded in IMPLEMENTATION_PLAN §9 | routine (owner) | `docs/IMPLEMENTATION_PLAN.md` | – |
 | T11 | **Done.** LiveTickets fixtures + spider | moderate | `spiders/livetickets.py`, `tests/fixtures/livetickets/*`, `tests/test_livetickets.py` | T2-T6, T10 |
 | T12 | **Done.** LiveTickets image URL template (R9 in the source spec) | routine | `spiders/livetickets.py`, `models.py` | T11 |
-| T13 | **Partly done:** LiveTickets live run done (2026-11-10). Full live run via `run.py`; check summaries and timing; tune `custom_settings` | moderate | settings, spiders | T9, T11 |
-| T14 | Contract alignment once PRJ-01 / BE-02 land (schema test, ingest URL) | hard (cross-team) | `models.py`, `ingest.py`, tests | PRJ-01, BE-02 |
+| T13 | **Partly done:** full `run.py` run with ingest verified 2026-11-10 (31 LiveTickets events, re-ingest without duplicates); iabilet is still a stub, so `run.py` reports it as failed. Remaining: iaBilet run, timing, tune `custom_settings` | moderate | settings, spiders | T9, T11 |
+| T14 | **Done (2026-11-10):** backend contract test ingests real scraper output | hard (cross-team) | `models.py`, `ingest.py`, tests | PRJ-01, BE-02 |
 
 ## 13. Open questions
 
@@ -209,17 +209,17 @@ Adding source 3..6 costs one spider file (~60-120 lines), 2-3 fixtures and one t
 
 | # | Question | Proposed default |
 |---|---|---|
-| B1 | Upsert key | `(source_name, external_id)`; `source_url` alone breaks when one page lists several dates |
-| B2 | Contract fields | Accept `source_category` and multi-line descriptions |
+| B1 | Upsert key | `(source_name, external_id)`; `source_url` alone breaks when one page lists several dates **Answered:** implemented as proposed (unique key + upsert). |
+| B2 | Contract fields | Accept `source_category` and multi-line descriptions **Answered:** accepted; covered by the contract test (T14). |
 | B3 | Events that disappear or get cancelled after ingest | Expire when not seen in N runs |
 | B4 | Geocoding (DATA-04) | In the backend: needs a persistent venue cache and Nominatim at 1 req/s; the scraper is stateless. LiveTickets already supplies lat/lng. |
-| B5 | Auth header and max batch size | `X-Ingest-Token`, batches of 50 (`INGEST_BATCH_SIZE`) |
+| B5 | Auth header and max batch size | `X-Ingest-Token`, batches of 50 (`INGEST_BATCH_SIZE`) **Answered:** `X-Ingest-Token` required (401 without it); response `{received, created, updated}`. |
 
 **Cross-team items still open**
 
 | Item | With | Proposal |
 |---|---|---|
-| Ingest payload | BE-02, PRJ-01 | `POST /api/ingest/events`, body `{"events": [Event, …]}`, header `X-Ingest-Token`. Today only `POST /api/events` exists (single object, no auth, no upsert). |
-| Contract drift | Backend | After PRJ-01: commit the ingest JSON schema (`model_json_schema()`) and validate sample output against it in a scraper test (T14). |
+| Ingest payload | BE-02, PRJ-01 | `POST /api/ingest/events`, body `{"events": [Event, …]}`, header `X-Ingest-Token`. **Done (2026-11-10):** implemented; open `POST /api/events` removed. |
+| Contract drift | Backend | **Covered:** backend contract test with real scraper output (T14). Optional: also commit the JSON schema (`model_json_schema()`) for a scraper-side check. |
 | Tagging (DATA-03) | – | Pure function called from `make_event`, keyword lists in a config file; `source_category` as an input hint. |
 | Scheduling and alerts | DevOps (OPS-04) | Daily cron runs `docker compose run --rm scraper`; non-zero exit → alert. Per-source health from `*.summary.json` (input for BE-10 source health). |

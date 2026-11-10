@@ -57,19 +57,21 @@ By **mid-January 2027**, GoCluj is live on a public HTTPS URL.
 | Area | What exists |
 |---|---|
 | Infra | `docker-compose.yml` with Postgres 15, pgAdmin, backend, frontend, scraper |
-| Backend | FastAPI app with one `POST /api/events` endpoint, SQLAlchemy models (`users`, `categories`, `events`, `favorites`) |
-| Database | Raw SQL schema in `data/schema1.sql` (loaded on first DB start) |
-| Data | Scrapy foundation in `scrape/` with two stub spiders (iaBilet, LiveTickets) |
-| Frontend | Default Vite + React 19 template |
+| Backend | FastAPI `app/` package; token-protected `POST /api/ingest/events` (upsert on `(source_name, external_id)`); `GET /api/events` (paginated, upcoming only), `GET /api/events/{id}`, `GET /api/categories`; CORS from `CORS_ORIGINS`; pytest incl. a contract test with real scraper output. See `backend/README.md` |
+| Database | Alembic migrations are the only schema source (run on backend start); `data/schema1.sql` removed |
+| Data | Scrapy in `scrape/`; LiveTickets spider live and ingesting (incl. `image_url`); iaBilet still a stub |
+| Frontend | PRJ-00 done; event cards with images, source label, date ranges and "Încarcă mai multe"; detail page `/evenimente/:id` with a link to the source |
+
+Verified end to end on 2026-11-10: fresh DB via Alembic → `docker compose run --rm scraper` ingested 31 LiveTickets events (all with images) → re-ingest created no duplicates → frontend shows cards and the detail page.
 
 Known gaps (fixed by the Epics below):
 
-- The schema is defined twice (`data/schema1.sql` and `backend/models.py`) and there are no migrations. → BE-01
-- `backend/Dockerfile` installs packages inline and ignores `requirements.txt`, and versions are not pinned. → OPS-01
-- `POST /api/events` is open to anyone. → BE-02
-- Compose passes `REACT_APP_API_URL`, but Vite only exposes `VITE_*` variables. → OPS-01
+- ~~The schema is defined twice and there are no migrations.~~ Resolved (BE-01).
+- ~~`backend/Dockerfile` ignores `requirements.txt`, versions not pinned.~~ Resolved (OPS-01).
+- ~~`POST /api/events` is open to anyone.~~ Resolved: removed, ingest needs `X-Ingest-Token` (BE-02).
+- ~~Compose passes `REACT_APP_API_URL`.~~ Resolved: removed (OPS-01).
 - The compose settings are dev-only (`--reload`, public DB and pgAdmin ports, bind mounts). → OPS-01, OPS-03
-- The data model has a single `event_date` and a single category, and no venue, source, friendship or hangout entities. → PRJ-01, BE-01
+- No venue, source, friendship or hangout entities; venue and source are flat columns on `events`. → DATA-04, BE-01
 
 ---
 
@@ -539,6 +541,10 @@ Short notes from investigations and any change to the default stack. Use the for
 - _2026-11-09 · Proposals (pending Backend review) · upsert key `(source_name, external_id)`; geocoding moves to the backend (needs a persistent venue cache) · see `docs/scrape/scraper-design.md` §6._
 - _2026-11-10 · Scraper sources · scraper design detailed for iaBilet and LiveTickets; per-source specs in `docs/scrape/sources/`; LiveTickets blocked on the INV-01 terms check._
 - _2026-11-10 · LiveTickets terms (INV-01, T10) · use the public JSON API (`api.livetickets.ro/public/events`), about 33 requests per daily run, full description stored as specified in `docs/scrape/sources/livetickets.md` · owner decision for a non-commercial university project. Terms read at `https://www.livetickets.ro/legal/termeni-si-conditii` (Flow Concept SRL, no date or version shown): nothing on bots, scraping or API use; §11 limits site content to personal use, anything else needs written consent (support@livetickets.ro), except fragments of max. 2 paragraphs on non-commercial sites with the source cited, and links with a credit line. Accepted risk: full descriptions exceed that exception. Always link to the original event page; revisit (shorten descriptions, add the credit line, or ask for consent) if the project goes public or LiveTickets objects._
+- _2026-11-10 · Upsert key · events are upserted on `(source_name, external_id)` · stable per-source identity, re-runs never duplicate (scraper-design B1)._
+- _2026-11-10 · Events API · `GET /api/events` returns `{items, total, limit, offset}` with upcoming events only (`coalesce(end_at, start_at) >= now()`) · the frontend needs "load more", and past events are not useful in the feed._
+- _2026-11-10 · Event images · hotlinked from the source CDN (URL stored, file never copied); every card and detail page links back to the source · consistent with the INV-01 LiveTickets decision; revisit if the project goes public._
+- _2026-11-10 · Venue · kept as flat columns on `events` for now · keep it simple; a venue entity is deferred to DATA-04._
 - _INV-01 · Event sources · pending for the remaining sources. First sources: iaBilet (server-rendered, JSON-LD) and LiveTickets (SPA, public JSON API; terms decision above)._
 - _INV-02 · Hosting · pending_
 - _INV-03 · AI approach & provider · pending_
