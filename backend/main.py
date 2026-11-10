@@ -23,3 +23,12 @@ def create_event(event: schemas.EventCreate, db: Session = Depends(get_db)):
             status_code=400, 
             detail="Acest eveniment (source_url) există deja în baza de date."
         )
+    
+@app.get("/api/events", response_model=list[schemas.EventResponse])
+def get_events(db: Session = Depends(get_db)):
+
+    events = db.query(models.Event).order_by(
+        models.Event.event_date.asc()
+    ).all()
+
+    return events

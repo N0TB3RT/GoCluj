@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 from typing import Optional
 
@@ -13,3 +13,19 @@ class EventCreate(BaseModel):
     is_free: Optional[bool] = False
     source_url: str
     category_id: Optional[int] = None
+
+class EventResponse(BaseModel):
+    id: int
+    title: str
+    description: Optional[str] = None
+    event_date: datetime
+    location_name: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    price_info: Optional[str] = None
+    is_free: Optional[bool] = False
+    source_url: str
+    category_id: Optional[int] = None
+    created_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
