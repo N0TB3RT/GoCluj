@@ -193,3 +193,15 @@ Fixtures in `scrape/tests/fixtures/livetickets/` (stripped as described in R11):
 | API limits (max list size, rate limits) | Open; about 33 requests per run, shared politeness settings |
 | Credit line / shorter descriptions | Open; needed if the project goes public (IMPLEMENTATION_PLAN §9) |
 | Slug stability | Irrelevant: `external_id` is the UUID |
+
+## 10. What still needs fixing
+
+Findings from the first live run (2026-11-10), in priority order. The first three need work; the last two are already handled and are listed so nobody undoes them.
+
+| # | Finding | State | What to do |
+|---|---|---|---|
+| F1 | **City-less events are lost.** 15 of 310 list items have no city, and their detail has none either, so they cannot be confirmed as Cluj. Counted under `events/no_city`. At least two real Cluj events were lost from that day's list (one at MATTER, one "secret location" party) | To fix | Recover them by matching the list `location` against venue names seen with city Cluj-Napoca in the same run, or by `is_cluj` on the title. Add a fixture for each case. Until then, watch `no_city` in the run summary |
+| F2 | **`source_category` is unreliable.** 16 of 31 events had no Category tag, and some values are promotional labels ("Trending events", "Evenimente recomandate"), not genres (R10) | To fix | Skip the known promotional labels and take the next Category tag, or leave this to categorisation (DATA-03), which must treat the field as a raw hint |
+| F3 | **Prices differ between list and detail** (for example 35 vs 40 RON max; detail `price_min` is null). The spider uses the list values; the reason is unknown | To investigate | Compare both values with the price shown on a few event pages, then keep the source that matches |
+| F4 | The API returns XML by default; the first live run failed on this | Handled | Keep `Accept: application/json` on both requests (`JSON_HEADERS`); the tests assert it |
+| F5 | No `company` block appeared, but details carry tracking ids and organizer contact emails (R11) | Handled | The spider never reads them and the fixtures are stripped. Whenever a fixture is added or refreshed, check that `git grep -n -i -E "company|secret|token|pixel|email|password" -- scrape/tests/fixtures/livetickets` returns nothing |
