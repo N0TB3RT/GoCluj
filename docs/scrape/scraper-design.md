@@ -3,7 +3,7 @@
 > Owner: Data team. Covers DATA-01..05. Code lives in [`scrape/`](../../scrape/README.md).
 > Last updated: 2026-11-10.
 
-**Status.** Implemented: Scrapy framework and settings, `Event` model, parsing helpers, `BaseEventSpider`, runner (`run.py`), `RunSummary`, `ingest.py`, unit tests. To do: both spiders (`iabilet.py`, `livetickets.py`) are stubs; of the shared changes (§6) S1-S4 and S6-S8 are done, S5 is open; the backend ingest endpoint (`POST /api/ingest/events`, BE-02 / PRJ-01) does not exist, so ingest runs in dry-run mode (`INGEST_URL` unset).
+**Status.** Implemented: Scrapy framework and settings, `Event` model, parsing helpers, `BaseEventSpider`, runner (`run.py`), `RunSummary`, `ingest.py`, unit tests. LiveTickets spider (`livetickets.py`, T11; one live run on 2026-11-10). To do: the iaBilet spider (`iabilet.py`) is a stub; of the shared changes (§6) S1-S4 and S6-S8 are done, S5 is open; the backend ingest endpoint (`POST /api/ingest/events`, BE-02 / PRJ-01) does not exist, so ingest runs in dry-run mode (`INGEST_URL` unset).
 
 ## 1. Goals and constraints
 
@@ -123,11 +123,12 @@ Counters (Scrapy stat keys):
 | `events/valid` | Emitted | `make_event` |
 | `events/invalid` | Failed `Event` validation | `make_event` |
 | `events/past` | Already ended | `make_event` via `skip` |
-| `events/cancelled` | Cancelled at source | spider `skip` (spider not written yet) |
-| `events/not_cluj` | Outside Cluj | spider `skip` (spider not written yet) |
-| `events/no_jsonld` | Detail page without Event JSON-LD | spider `skip` (spider not written yet) |
-| `events/status_<value>` | Unexpected source status | spider `skip` (spider not written yet) |
-| `events/time_slots` | Emitted, but source has time slots | spider (not written yet) |
+| `events/cancelled` | Cancelled at source | spider `skip` (iaBilet, not written yet) |
+| `events/not_cluj` | Outside Cluj | spider `skip` (LiveTickets) |
+| `events/no_city` | Source gives no city, so Cluj cannot be checked | spider `skip` (LiveTickets) |
+| `events/no_jsonld` | Detail page without Event JSON-LD | spider `skip` (iaBilet, not written yet) |
+| `events/status_<value>` | Unexpected source status | spider `skip` (LiveTickets) |
+| `events/time_slots` | Emitted, but source has time slots | spider (LiveTickets) |
 
 **Failed run** (`extensions.py:46`): `items == 0`, or close reason ≠ `finished` (e.g. `closespider_timeout`, `closespider_errorcount`), or any ERROR log line. `run.py` also fails a spider whose subprocess exits non-zero or writes no summary. Failed spiders' JSONL is not ingested.
 
@@ -138,7 +139,7 @@ Counters (Scrapy stat keys):
 | Source | Summary | Spec |
 |---|---|---|
 | iaBilet (`iabilet`) | Server-rendered Cluj listing (~7 pages, ~155 events), Event JSON-LD on detail pages. Stop when `a.btn-more` is absent; take all tariffs from the detail page; skip cancelled. ~3-4 min per run. | [sources/iabilet.md](sources/iabilet.md) |
-| LiveTickets (`livetickets`) | Angular SPA; data from public JSON API (`api.livetickets.ro/public/events`, one list, no pagination) + per-event detail. Filter Cluj, then detail. **Blocked on INV-01** (terms check, T10). | [sources/livetickets.md](sources/livetickets.md) |
+| LiveTickets (`livetickets`) | Angular SPA; data from public JSON API (`api.livetickets.ro/public/events`, one list, no pagination) + per-event detail. Filter Cluj (city-less items skipped as `no_city`), then detail. Implemented; live run 2026-11-10: 31 events, 33 requests, ~1 min. | [sources/livetickets.md](sources/livetickets.md) |
 
 ## 9. Design principles applied
 
@@ -185,10 +186,10 @@ Adding source 3..6 costs one spider file (~60-120 lines), 2-3 fixtures and one t
 | T7 | Save and trim iaBilet fixtures | routine | `tests/fixtures/iabilet/*` | – |
 | T8 | iaBilet listing: pagination, seen ids, cancelled skip | moderate | `spiders/iabilet.py`, `tests/test_iabilet.py` | T6, T7 |
 | T9 | iaBilet detail mapping (tariffs, title prefix, breadcrumb category) | moderate | `spiders/iabilet.py`, tests | T2-T5, T8 |
-| T10 | LiveTickets terms check (INV-01), recorded in IMPLEMENTATION_PLAN §9 | routine (owner) | `docs/IMPLEMENTATION_PLAN.md` | – |
-| T11 | LiveTickets fixtures + spider | moderate | `spiders/livetickets.py`, `tests/fixtures/livetickets/*`, `tests/test_livetickets.py` | T2-T6, T10 |
-| T12 | LiveTickets image URL template (browser network tab) | routine | `spiders/livetickets.py` | T11 |
-| T13 | Full live run via `run.py`; check summaries and timing; tune `custom_settings` | moderate | settings, spiders | T9, T11 |
+| T10 | **Done.** LiveTickets terms check (INV-01), recorded in IMPLEMENTATION_PLAN §9 | routine (owner) | `docs/IMPLEMENTATION_PLAN.md` | – |
+| T11 | **Done.** LiveTickets fixtures + spider | moderate | `spiders/livetickets.py`, `tests/fixtures/livetickets/*`, `tests/test_livetickets.py` | T2-T6, T10 |
+| T12 | Open. LiveTickets image URL template (browser network tab) | routine | `spiders/livetickets.py` | T11 |
+| T13 | **Partly done:** LiveTickets live run done (2026-11-10). Full live run via `run.py`; check summaries and timing; tune `custom_settings` | moderate | settings, spiders | T9, T11 |
 | T14 | Contract alignment once PRJ-01 / BE-02 land (schema test, ingest URL) | hard (cross-team) | `models.py`, `ingest.py`, tests | PRJ-01, BE-02 |
 
 ## 13. Open questions
@@ -197,8 +198,8 @@ Adding source 3..6 costs one spider file (~60-120 lines), 2-3 fixtures and one t
 
 | # | Question | Proposed default |
 |---|---|---|
-| O1 | Do LiveTickets terms allow API use? | Unknown; blocks T11 |
-| O2 | Do Cluj county events count? | Cluj-Napoca city only. Note: `is_cluj` is a substring test for "cluj" (`parsing/text.py:111`), so it also matches county places; a spider that must exclude them compares the city exactly (see [LiveTickets](sources/livetickets.md), R2). |
+| O1 | Do LiveTickets terms allow API use? | Answered 2026-11-10: yes, the public API is used (IMPLEMENTATION_PLAN §9) |
+| O2 | Do Cluj county events count? | Cluj-Napoca city only. Note: `is_cluj` is a substring test for "cluj" (`parsing/text.py:111`), so it also matches county places; a spider that must exclude them compares the city exactly (see [LiveTickets](sources/livetickets.md), R2). LiveTickets list items without a city are skipped (`no_city`), so Cluj and county events among them are lost (R1). |
 | O3 | Keep sold-out events? | Yes |
 | O4 | LiveTickets `price_max == 0`: free or unknown? | Unknown (`price_text` None) |
 | O5 | Rescheduled events: show the new date only? | Yes |

@@ -29,7 +29,7 @@ scrape/
     parsing/                  shared helpers (jsonld.py, text.py)
     spiders/base.py           BaseEventSpider (make_event, next_page, max_pages)
     spiders/iabilet.py        iaBilet spider (skeleton)
-    spiders/livetickets.py    LiveTickets spider (skeleton)
+    spiders/livetickets.py    LiveTickets spider (public JSON API)
   tests/                      pytest tests; tests/fixtures/<source>/ saved pages
 ```
 
